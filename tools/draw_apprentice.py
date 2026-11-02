@@ -1,6 +1,6 @@
 """Draw original, aligned pixel layers for the apprentice. Requires Pillow."""
 import json
-from math import sin, cos, pi, radians
+from math import sin, cos, pi, radians, hypot, sqrt
 from pathlib import Path
 from PIL import Image, ImageDraw
 
@@ -15,6 +15,14 @@ COPPER, TEAL, PALE = "#b97040", "#388d86", "#86d8b9"
 sheets = {name: Image.new("RGBA", (W*8, H*len(STATES))) for name in LAYERS}
 
 
+def bent_joint(root, tip, bend, length):
+    dx, dy = tip[0]-root[0], tip[1]-root[1]
+    span = max(1, hypot(dx, dy))
+    flex = sqrt(max(0, length**2 - (span/2)**2)) * bend
+    return (round((root[0]+tip[0])/2 + dy/span*flex),
+            round((root[1]+tip[1])/2 - dx/span*flex))
+
+
 def draw(state, i):
     layers = {name: Image.new("RGBA", (W, H)) for name in LAYERS}
     d = {k: ImageDraw.Draw(im) for k, im in layers.items()}
@@ -23,6 +31,8 @@ def draw(state, i):
     run = state == "run"
     rear = state == "climb"
     bob = round(abs(sin(phase)) * (2 if gait else 1))
+    if state == "idle":
+        bob = [0, -1, -1, 0][i]
     lean = 3 if run else 0
     if state == "attack":
         lean = [-2, -3, -4, 4, 5, 2][i]
@@ -33,13 +43,14 @@ def draw(state, i):
         lean, bob = 1+i, -2+i
     if state == "fall":
         lean, bob = -1+i, -i
+    hip = 0 if state == "idle" else bob
     x, y = 39+lean, 22+bob
     # Exposed neck and arms. Ink outlines stay one pixel wide at native scale.
     d["body"].rectangle((x-3,y-6,x+3,y+2), fill=SKIN)
     def limb(layer, pts, color, width):
         d[layer].line(pts, fill=INK, width=width+2)
         d[layer].line(pts, fill=color, width=width)
-    d["body"].polygon([(x-6,y),(x+5,y),(x+7,y+6),(45,38+bob),(34,38+bob),(x-7,y+7)],fill=SKIN,outline=INK)
+    d["body"].polygon([(x-6,y),(x+5,y),(x+7,y+6),(45,38+hip),(34,38+hip),(x-7,y+7)],fill=SKIN,outline=INK)
     for side in [-1, 1]:
         step = round(side*sin(phase)*(10 if run else 6)) if gait else side*3
         lift = round(max(0, side*cos(phase))*(6 if run else 4)) if gait else 0
@@ -48,19 +59,20 @@ def draw(state, i):
         elif state in ("jump","fall"):
             step, lift = side*(6+i), (9 if side==-1 else 3)+i*(1 if state=="jump" else -1)
         foot = (39+step, 57-lift)
-        leg = [(39+side*4,39+bob),(39+side*4+step//2,47-lift//2),foot]
+        socket = (39+side*4,38+hip)
+        leg = [socket, bent_joint(socket, foot, 1, 11), foot]
         limb("body",leg,SKIN,4)
         limb("clothes",leg,"#334e5c" if side<0 else "#46687a",6)
         fx, fy = foot
         d["clothes"].rectangle((fx-3,fy-3,fx+5,fy+2),fill="#473a35",outline=INK)
         d["clothes"].line((fx-2,fy-2,fx+3,fy-2),fill="#da995c")
     # Jacket, leather yoke, stitched utility belt and brass buckle.
-    d["clothes"].polygon([(x-7,y),(x+6,y),(x+9,y+6),(41+5,39+bob),(32,39+bob),(x-9,y+7)], fill=TEAL, outline=INK)
+    d["clothes"].polygon([(x-7,y),(x+6,y),(x+9,y+6),(41+5,39+hip),(32,39+hip),(x-9,y+7)], fill=TEAL, outline=INK)
     d["clothes"].line((x-6,y+3,x+5,y+3),fill=PALE,width=2)
-    d["clothes"].polygon([(x-6,y+4),(x-3,y+4),(42,36+bob),(39,36+bob)],fill="#925b41")
-    d["clothes"].rectangle((32,36+bob,47,40+bob),fill="#664737",outline=INK)
-    d["clothes"].rectangle((39,37+bob,42,39+bob),fill="#efc564")
-    d["clothes"].rectangle((32,38+bob,36,43+bob),fill=COPPER,outline=INK)
+    d["clothes"].polygon([(x-6,y+4),(x-3,y+4),(42,36+hip),(39,36+hip)],fill="#925b41")
+    d["clothes"].rectangle((32,36+hip,47,40+hip),fill="#664737",outline=INK)
+    d["clothes"].rectangle((39,37+hip,42,39+hip),fill="#efc564")
+    d["clothes"].rectangle((32,38+hip,36,43+hip),fill=COPPER,outline=INK)
     # Angular face, dark fringe, single raised eyebrow, copper ear guard.
     face=d["face"]
     face.polygon([(x-6,y-17),(x+5,y-17),(x+7,y-12),(x+7,y-7),(x+3,y-4),(x-5,y-5),(x-7,y-10)],fill="#573e36" if rear else SKIN,outline=INK)
@@ -86,23 +98,29 @@ def draw(state, i):
             hx += side*(3+i)
             hy -= 6+i*2
         elif state=="attack" and side==1:
-            hx=x+[5,1,-3,15,17,10][i]
+            hx=x+[5,1,6,14,16,10][i]
             hy=y+[2,-3,-6,4,9,10][i]
         shoulder = (x+side*6,y+4)
-        elbow = (hx-side*2,(shoulder[1]+hy)//2+2)
+        elbow = bent_joint(shoulder, (hx,hy), -1, 7)
         limb("clothes",[shoulder,elbow],TEAL,5)
-        limb("body",[elbow,(hx,hy)],SKIN,4)
+        limb("clothes",[elbow,(hx,hy)],"#579e98",5)
+        d["clothes"].ellipse((elbow[0]-2,elbow[1]-2,elbow[0]+2,elbow[1]+2),fill=TEAL)
         d["clothes"].rectangle((hx-2,hy-2,hx+2,hy+2),fill="#654638")
         if side==1:
             grip=(hx,hy)
     # Rotated polygon hammer, parked at the belt for the rear view.
-    angle = ([-58,-101,-135,0,30,62][i] if state=="attack" else
+    angle = ([-85,-115,-70,-10,35,62][i] if state=="attack" else
              110 if rear else 72+round(sin(phase)*12 + cos(phase)*5))
+    if state == "idle":
+        angle = [73, 73, 75, 75][i]
     gx,gy = (34,38) if rear else grip
     a=radians(angle)
     def point(u,v):
         return round(gx+u*cos(a)-v*sin(a)),round(gy+u*sin(a)+v*cos(a))
     hammer=d["weapon"]
+    if state == "attack" and i in (3,4):
+        tx,ty = point(16,-4)
+        hammer.line([(tx-8,ty-9),(tx-3,ty-5),(tx,ty)],fill="#c4ddd0",width=2)
     hammer.polygon([point(u,v) for u,v in [(-2,-1),(13,-1),(13,1),(-2,1)]],fill=COPPER,outline=INK)
     hammer.polygon([point(u,v) for u,v in [(11,-6),(16,-6),(17,-3),(16,5),(11,5)]],fill="#83a7ad",outline=INK)
     hammer.line([point(12,-5),point(15,-5)],fill="#e0f0db",width=2)

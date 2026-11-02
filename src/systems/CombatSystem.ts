@@ -19,12 +19,6 @@ export class CombatSystem {
   }
   private strike(player: Player, enemies: Enemy[], damage: number, onKill: (enemy: Enemy) => void, facing: number) {
     const range = new Phaser.Geom.Rectangle(player.x + (facing > 0 ? 5 : -105), player.y - 35, 100, 70);
-    const slash = this.scene.add.graphics({ x: player.x, y: player.y }).setDepth(20);
-    slash.fillStyle(0xe4ffac, 0.13).fillRect(5, -35, 100, 70);
-    slash.lineStyle(11, 0xf2ffce, 0.85).beginPath().arc(0, 0, 65, -0.9, 0.85).strokePath();
-    slash.lineStyle(3, 0xffffff, 1).beginPath().arc(0, 0, 65, -0.9, 0.85).strokePath();
-    slash.setScale(facing, 1);
-    this.scene.tweens.add({ targets: slash, alpha: 0, duration: 135, onComplete: () => slash.destroy() });
     enemies.filter(e => e.active && Phaser.Geom.Intersects.RectangleToRectangle(range, new Phaser.Geom.Rectangle(e.body!.x, e.body!.y, e.body!.width, e.body!.height))).forEach(enemy => {
       enemy.hp -= damage; enemy.stagger(); this.float(enemy.x, enemy.y - 45, `${damage}`, '#fff0a9');
       if (enemy.hp <= 0) { enemy.die(); onKill(enemy); }
