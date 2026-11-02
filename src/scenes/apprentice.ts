@@ -61,12 +61,6 @@ export function assembleApprentice(scene: Phaser.Scene) {
   if (scene.textures.exists(APPRENTICE)) return;
   const first = scene.textures.get(APPRENTICE + '-' + layout.layers[0]).getSourceImage();
   const sheet = scene.textures.createCanvas(APPRENTICE, first.width, first.height)!;
-  for (const state of ['idle', 'run', 'attack'] as const) {
-    characterArt[state].layers.forEach((url, i) => {
-      const key = externalKey(state, i);
-      if (!scene.textures.exists(key)) scene.load.image(key, url);
-    });
-  }
   for (const layer of layout.layers) {
     sheet.context.drawImage(scene.textures.get(APPRENTICE + '-' + layer).getSourceImage() as HTMLImageElement, 0, 0);
   }
@@ -74,11 +68,12 @@ export function assembleApprentice(scene: Phaser.Scene) {
   for (const state of Object.keys(clips) as Clip[]) {
     const { row, count } = clips[state];
     const replacement = state === 'idle' || state === 'run' || state === 'attack' ? externalFrames(scene, state) : undefined;
-    const frames = replacement ?? Array.from({ length: count }, (_, i) => {
+    const fallback = Array.from({ length: count }, (_, i) => {
       const frame = state + '-' + i;
       sheet.add(frame, 0, i * layout.width, row * layout.height, layout.width, layout.height);
       return { key: APPRENTICE, frame };
     });
+    const frames = replacement ?? fallback;
     if (state === 'attack') {
       const impact = replacement ? characterArt.attack.impactFrame : 3;
       scene.anims.create({ key: 'tech-windup', frames: frames.slice(0, impact), frameRate: impact * 1000 / PLAYER.windup });
