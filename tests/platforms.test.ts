@@ -23,3 +23,27 @@ test('forest has a reachable sequence of platforms using the configured jump', (
     assert.ok(gap < PLAYER.speed * landingTime * 0.9, `platform ${i + 1} is too far away`);
   }
 });
+
+test('each required gap permits a standing jump with takeoff and landing margin', () => {
+  const [ground, ...tiles] = FOREST.platforms;
+  const step = 1 / 60;
+  let from = ground;
+  for (const to of tiles) {
+    const gap = Math.max(0, to.x - to.w / 2 - (from.x + from.w / 2));
+    let x = 0, y = from.y, vx = 0, vy = -PLAYER.jump;
+    let landed = false;
+    for (let frame = 0; frame < 120; frame++) {
+      const previous = y;
+      vx = Math.min(PLAYER.speed, vx + PLAYER.acceleration * step);
+      vy += WORLD_GRAVITY * step;
+      x += vx * step;
+      y += vy * step;
+      if (vy > 0 && previous <= to.y && y >= to.y) {
+        landed = x >= gap + 24;
+        break;
+      }
+    }
+    assert.ok(landed, `not enough landing margin on platform at x=${to.x}`);
+    from = to;
+  }
+});

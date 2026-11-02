@@ -14,6 +14,7 @@ export class GameScene extends Phaser.Scene {
   private progress!: ProgressionSystem;
   private save!: SaveSystem;
   private keys!: Record<string, Phaser.Input.Keyboard.Key>;
+  private coordinates?: Phaser.GameObjects.Text;
   private measurement?: Phaser.GameObjects.Container;
   constructor(private hud: Hud) { super('forest'); }
   create() {
@@ -23,6 +24,7 @@ export class GameScene extends Phaser.Scene {
     this.save = new SaveSystem(storage); this.progress = new ProgressionSystem(this.save.load());
     this.physics.world.setBounds(0, 0, FOREST.width, 720);
     this.drawForest();
+    if (this.physics.world.drawDebug) this.coordinates = this.add.text(12, 190, '', { backgroundColor: '#142d27' }).setScrollFactor(0).setDepth(100);
     const platforms = this.physics.add.staticGroup();
     FOREST.platforms.forEach((p, index) => {
       const tile = platforms.create(p.x, p.y + 20, 'platform') as Phaser.Physics.Arcade.Image;
@@ -35,7 +37,14 @@ export class GameScene extends Phaser.Scene {
     this.enemies = FOREST.enemies.map(e => new Enemy(this, e.kind, e.x, e.min, e.max));
     this.enemies.forEach(enemy => { this.physics.add.collider(enemy, platforms); this.physics.add.overlap(this.player, enemy, () => {
       if (!this.combat.hit(this.player, enemy)) return;
-      if (this.player.hp <= 0) { this.player.setPosition(FOREST.spawn.x, FOREST.spawn.y).setVelocity(0); this.player.hp = this.progress.maxHp; this.hud.notice('다시 도전! 시작 지점에서 체력을 회복했습니다.'); }
+      if (this.player.hp <= 0) {
+        this.player.setVelocity(0).setAccelerationX(0);
+        this.time.delayedCall(650, () => {
+          (this.player.body as Phaser.Physics.Arcade.Body).reset(FOREST.spawn.x, FOREST.spawn.y);
+          this.player.hp = this.progress.maxHp; this.refresh();
+          this.hud.notice('다시 도전! 시작 지점에서 체력을 회복했습니다.');
+        });
+      }
       this.refresh();
     }); });
     this.combat = new CombatSystem(this);
@@ -51,6 +60,7 @@ export class GameScene extends Phaser.Scene {
     this.player.move(this.keys.A.isDown || this.keys.LEFT.isDown, this.keys.D.isDown || this.keys.RIGHT.isDown, Phaser.Input.Keyboard.JustDown(this.keys.SPACE));
     if (Phaser.Input.Keyboard.JustDown(this.keys.X)) this.measurePlatform();
     this.enemies.forEach(e => e.tick());
+    this.coordinates?.setText(`x ${Math.round(this.player.x)}  y ${Math.round(this.player.y)}`);
     if (this.keys.Z.isDown) this.combat.attack(this.player, this.enemies, this.progress.attack, enemy => {
       const levels = this.progress.reward(enemy.stats.exp, enemy.stats.gold);
       this.combat.float(enemy.x, enemy.y - 70, `+${enemy.stats.exp} EXP · +${enemy.stats.gold} G`);

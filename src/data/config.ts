@@ -1,4 +1,4 @@
-export const PLAYER = { speed: 240, jump: 481, baseHp: 100, hpPerLevel: 15, baseAttack: 18, attackPerLevel: 3, cooldown: 380, invulnerability: 1100 };
+export const PLAYER = { speed: 240, acceleration: 2100, drag: 3000, coyote: 85, buffer: 110, windup: 95, swing: 230, jump: 481, baseHp: 100, hpPerLevel: 15, baseAttack: 18, attackPerLevel: 3, cooldown: 380, invulnerability: 1100 };
 export const WORLD_GRAVITY = 1200;
 export const LEVEL_EXP = [0, 100, 180, 280, 420, 600, 840, 1120, 1460, 1860];
 export const requiredExp = (level: number) => LEVEL_EXP[level] ?? Math.round(1860 * Math.pow(1.24, level - 9));
