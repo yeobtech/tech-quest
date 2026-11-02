@@ -7,6 +7,7 @@ import { CombatSystem } from '../systems/CombatSystem';
 import { ProgressionSystem } from '../systems/ProgressionSystem';
 import { SaveSystem } from '../systems/SaveSystem';
 import { Hud } from '../ui/Hud';
+import { preloadApprentice, assembleApprentice } from './apprentice';
 import { createTextures } from './textures';
 export class GameScene extends Phaser.Scene {
   private map: MapData = FOREST;
@@ -23,10 +24,12 @@ export class GameScene extends Phaser.Scene {
   private coordinates?: Phaser.GameObjects.Text;
   private measurement?: Phaser.GameObjects.Container;
   constructor(private hud: Hud) { super('forest'); }
+  preload() { preloadApprentice(this); }
   create(data: { map?: MapData; hp?: number; message?: string } = {}) {
     this.map = data.map ?? FOREST;
     this.finished = false; this.climbing = undefined; this.chest = undefined; this.chestPrompt = undefined; this.measurement = undefined;
-    if (!this.textures.exists('player-idle')) createTextures(this);
+    assembleApprentice(this);
+    if (!this.textures.exists('platform')) createTextures(this);
     let storage;
     try { storage = window.localStorage; } catch { storage = { getItem: () => null, setItem: () => { throw new Error('Storage unavailable'); } }; }
     this.save = new SaveSystem(storage); this.progress ??= new ProgressionSystem(this.save.load());
@@ -51,7 +54,7 @@ export class GameScene extends Phaser.Scene {
       if (enemy.active) this.receiveDamage(enemy.stats.damage);
     }); });
     this.combat = new CombatSystem(this);
-    this.keys = this.input.keyboard!.addKeys('A,D,LEFT,RIGHT,SPACE,Z,X,E,UP,W') as Record<string, Phaser.Input.Keyboard.Key>;
+    this.keys = this.input.keyboard!.addKeys('A,D,LEFT,RIGHT,SPACE,Z,X,E,UP,W,SHIFT') as Record<string, Phaser.Input.Keyboard.Key>;
     this.input.keyboard!.addCapture(['SPACE', 'LEFT', 'RIGHT', 'UP', 'DOWN']);
     this.cameras.main.setBounds(0, 0, this.map.width, 720).startFollow(this.player, true, 0.09, 0.09);
     this.game.canvas.setAttribute('tabindex', '0'); this.game.canvas.setAttribute('aria-label', 'TECH QUEST 게임. A D 이동, Space 점프, Z 공격, X 발판 측정');
@@ -60,7 +63,7 @@ export class GameScene extends Phaser.Scene {
   }
   update() {
     if (!this.player) return;
-    this.player.move(this.keys.A.isDown || this.keys.LEFT.isDown, this.keys.D.isDown || this.keys.RIGHT.isDown, Phaser.Input.Keyboard.JustDown(this.keys.SPACE), !!this.climbing);
+    this.player.move(this.keys.A.isDown || this.keys.LEFT.isDown, this.keys.D.isDown || this.keys.RIGHT.isDown, Phaser.Input.Keyboard.JustDown(this.keys.SPACE), !!this.climbing, this.keys.SHIFT.isDown);
     if (Phaser.Input.Keyboard.JustDown(this.keys.X)) this.measurePlatform();
     const interact = Phaser.Input.Keyboard.JustDown(this.keys.E);
     if (this.player.hp && this.map === TRAINING) this.train(interact);
@@ -237,7 +240,26 @@ export class GameScene extends Phaser.Scene {
       g.fillStyle(npc.coat).fillRect(x - 16, 590, 32, 26);
       g.fillStyle(0xe8b783).fillRect(x - 10, 570, 20, 20);
       g.fillStyle(0x354e53).fillRect(x - 14, 568, 28, 7).fillRect(x + 4, 579, 3, 3);
-      this.add.text(x, 560, npc.name + ' · E', { fontSize: '15px', backgroundColor: '#26463e' }).setOrigin(0.5, 1);
+      if (npc.name === '기술 교관') {
+        // Rolled blueprint, goggles and a high, square work cap.
+        g.fillStyle(0xb8783c).fillRect(x - 12, 560, 22, 9);
+        g.fillStyle(0x9de0d6).fillRect(x - 7, 576, 6, 4).fillRect(x + 2, 576, 6, 4);
+        g.fillStyle(0xe0ebc4).fillRect(x + 12, 590, 8, 23);
+        g.fillStyle(0x5896a2).fillRect(x + 13, 595, 6, 3);
+      } else if (npc.name === '상점 주인') {
+        // Soft kerchief, broad apron and a pocket for a measuring tape.
+        g.fillStyle(0xb75144).fillTriangle(x - 15, 572, x + 10, 569, x - 8, 560);
+        g.fillStyle(0xf3d390).fillRect(x - 10, 596, 21, 22);
+        g.fillStyle(0x884c34).fillRect(x - 6, 606, 12, 6);
+        g.fillStyle(0xf7c456).fillRect(x + 7, 601, 6, 8);
+      } else {
+        // Long split coat, epaulets and a guild insignia.
+        g.fillStyle(0x4e5176).fillTriangle(x - 12, 598, x - 20, 626, x - 3, 618)
+          .fillTriangle(x + 11, 598, x + 19, 626, x + 3, 618);
+        g.fillStyle(0xe0c17d).fillRect(x - 18, 590, 10, 5).fillRect(x + 8, 590, 10, 5);
+        g.fillStyle(0xf5d899).fillTriangle(x, 595, x + 4, 599, x, 604);
+      }
+      this.add.text(x, 550, npc.name + ' · E', { fontSize: '15px', backgroundColor: '#26463e' }).setOrigin(0.5, 1);
     }
     this.portal(VILLAGE.spawn.x, '숲');
   }

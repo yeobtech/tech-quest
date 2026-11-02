@@ -13,7 +13,7 @@ export class CombatSystem {
     const facing = player.facing;
     this.scene.time.delayedCall(PLAYER.windup, () => {
       if (!player.canAttack) return;
-      player.setTexture('player-attack-2');
+      player.play('tech-impact');
       this.strike(player, enemies, damage, onKill, facing);
     });
   }

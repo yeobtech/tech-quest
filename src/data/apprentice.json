@@ -1,0 +1,53 @@
+{
+  "width": 80,
+  "height": 64,
+  "foot": [
+    40,
+    60
+  ],
+  "layers": [
+    "body",
+    "face",
+    "clothes",
+    "headgear",
+    "weapon"
+  ],
+  "clips": {
+    "idle": {
+      "row": 0,
+      "count": 4
+    },
+    "walk": {
+      "row": 1,
+      "count": 6
+    },
+    "run": {
+      "row": 2,
+      "count": 8
+    },
+    "jump": {
+      "row": 3,
+      "count": 2
+    },
+    "fall": {
+      "row": 4,
+      "count": 2
+    },
+    "attack": {
+      "row": 5,
+      "count": 6
+    },
+    "hurt": {
+      "row": 6,
+      "count": 2
+    },
+    "death": {
+      "row": 7,
+      "count": 6
+    },
+    "climb": {
+      "row": 8,
+      "count": 4
+    }
+  }
+}
