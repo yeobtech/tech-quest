@@ -1,0 +1,4 @@
+TECH QUEST 노트북 인수인계
+Node.js 22.12 이상과 npm을 준비하고 이 폴더에서 npm ci, npm test, npm run build, npm run dev 순서로 실행하세요.
+최근 밸런스: 점프 최고 높이 약 96px, 숲 몬스터 10마리, 첫 레벨업 100 EXP. 자동 테스트 6개 통과. Chrome에서 첫 두 발판 착지 확인.
+중학교 기술 수업용 Phaser 3 + TypeScript 게임. 다음 예정 단계는 기술자 마을과 포털, NPC입니다. 브라우저 플레이 기록은 기기별 localStorage에 저장됩니다.
