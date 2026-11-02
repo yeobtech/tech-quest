@@ -17,6 +17,7 @@ export class GameScene extends Phaser.Scene {
   private chestPrompt?: Phaser.GameObjects.Text;
   private finished = false;
   private climbing?: typeof YARD.ladders[number];
+  private ladderDirection: -1 | 1 = -1;
   private player!: Player;
   private enemies: Enemy[] = [];
   private combat!: CombatSystem;
@@ -51,13 +52,17 @@ export class GameScene extends Phaser.Scene {
       if (index > 0) { const body = tile.body as Phaser.Physics.Arcade.StaticBody; body.checkCollision.down = false; body.checkCollision.left = false; body.checkCollision.right = false; }
     });
     this.player = new Player(this, this.map.spawn.x, this.map.spawn.y); this.player.hp = data.hp ?? this.progress.maxHp;
-    this.physics.add.collider(this.player, platforms);
+    this.physics.add.collider(this.player, platforms, undefined, (_player,tile) => {
+      const ladder=this.climbing;
+      const body=(tile as Phaser.Physics.Arcade.Image).body!;
+      return !ladder || this.ladderDirection !== 1 || body.top !== ladder.top || ladder.x < body.left || ladder.x > body.right;
+    });
     this.enemies = this.map.enemies.map(e => new Enemy(this, e.kind, e.x, e.min, e.max));
     this.enemies.forEach(enemy => { this.physics.add.collider(enemy, platforms); this.physics.add.overlap(this.player, enemy, () => {
       if (enemy.active) this.receiveDamage(enemy.stats.damage);
     }); });
     this.combat = new CombatSystem(this);
-    this.keys = this.input.keyboard!.addKeys('A,D,LEFT,RIGHT,SPACE,Z,X,E,UP,W,SHIFT') as Record<string, Phaser.Input.Keyboard.Key>;
+    this.keys = this.input.keyboard!.addKeys('A,D,LEFT,RIGHT,SPACE,Z,X,E,UP,W,DOWN,S,SHIFT') as Record<string, Phaser.Input.Keyboard.Key>;
     this.input.keyboard!.addCapture(['SPACE', 'LEFT', 'RIGHT', 'UP', 'DOWN']);
     this.cameras.main.setBounds(0, 0, this.map.width, 720).startFollow(this.player, true, 0.09, 0.09);
     this.game.canvas.setAttribute('tabindex', '0'); this.game.canvas.setAttribute('aria-label', 'TECH QUEST 게임. A D 이동, Space 점프, Z 공격, X 발판 측정');
@@ -146,14 +151,15 @@ export class GameScene extends Phaser.Scene {
   private refresh() { this.hud.update(this.progress, this.player.hp); }
   private train(interact: boolean) {
     const body = this.player.body as Phaser.Physics.Arcade.Body;
-    if (interact || this.keys.UP.isDown || this.keys.W.isDown) this.grabLadder();
+    if (this.keys.DOWN.isDown || this.keys.S.isDown) this.grabLadder(1);
+    else if (interact || this.keys.UP.isDown || this.keys.W.isDown) this.grabLadder(-1);
     if (this.climbing) {
-      if (body.bottom <= this.climbing.top) {
+      if (this.ladderDirection < 0 ? body.bottom <= this.climbing.top : body.bottom >= this.climbing.bottom) {
         this.player.setVelocity(0);
         this.climbing = undefined;
       } else {
         this.player.setAccelerationX(0).setVelocityX(Phaser.Math.Clamp((this.climbing.x - body.center.x) * 8, -160, 160));
-        this.player.setVelocityY(-180);
+        this.player.setVelocityY(this.ladderDirection * 180);
       }
     }
     for (const spike of YARD.spikes) {
@@ -178,12 +184,14 @@ export class GameScene extends Phaser.Scene {
       this.travel(FOREST, '훈련장 클리어! 경험치 +15 · 골드 +5');
     }
   }
-  private grabLadder() {
+  private grabLadder(direction: -1 | 1 = -1) {
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     if (!this.player.hp) return;
-    this.climbing ??= YARD.ladders.find(ladder =>
+    const target = this.climbing ?? YARD.ladders.find(ladder =>
       body.right >= ladder.x - 32 && body.left <= ladder.x + 32 &&
-      body.bottom > ladder.top + 1 && body.bottom <= ladder.bottom + 3);
+      (direction < 0 ? body.bottom > ladder.top + 1 && body.bottom <= ladder.bottom + 3 :
+        body.bottom >= ladder.top - 3 && body.bottom < ladder.bottom - 1));
+    if (target) { this.climbing = target; this.ladderDirection = direction; }
   }
   private drawTraining() {
     this.cameras.main.setBackgroundColor('#243a49');
@@ -214,7 +222,7 @@ export class GameScene extends Phaser.Scene {
     sign(130, 520, 'START · A D 이동');
     sign(325, 530, 'SPACE · 점프');
     sign(830, 505, 'Z · 공격');
-    sign(1110, 454, '↑ / W / E · 사다리 오르기');
+    sign(1110, 454, '↑ / W / E 오르기 · ↓ / S 내려가기');
     const { x, y } = YARD.chest;
     const kit = this.add.graphics();
     kit.lineStyle(4, 0x233b41).strokeRoundedRect(-8, -35, 16, 10, 3);
