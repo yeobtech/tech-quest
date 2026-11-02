@@ -7,13 +7,31 @@ export class Hud {
     this.root = document.querySelector('.game-shell')!;
     document.querySelector('#focus-game')!.addEventListener('click', () => { document.querySelector('canvas')?.focus(); document.querySelector('#focus-game')?.classList.add('hidden'); });
   }
-  location(training: boolean) {
-    const name = training ? '기술자 훈련장' : '초보자의 숲';
+  talk(npc: { name: string; speech: string }, done: () => void) {
+    const panel = document.createElement('dialog');
+    panel.className = 'workshop';
+    panel.setAttribute('aria-label', npc.name);
+    const title = document.createElement('h2');
+    title.textContent = npc.name;
+    const speech = document.createElement('p');
+    speech.textContent = npc.speech;
+    const close = document.createElement('button');
+    close.textContent = '대화 마치기';
+    close.onclick = () => panel.close();
+    panel.append(title, speech, close);
+    document.body.append(panel);
+    panel.addEventListener('close', () => { panel.remove(); done(); }, { once: true });
+    panel.showModal();
+  }
+  location(map: { id: string; name: string }) {
+    const name = map.name;
+    const training = map.id === 'training-yard';
+    const village = map.id === 'technician-village';
     document.querySelector('h1')!.firstChild!.textContent = name + ' ';
-    document.querySelector('.world-heading small')!.textContent = training ? 'TRAINING / ENGINEERING YARD' : "WORLD 01 / BEGINNER'S FOREST";
+    document.querySelector('.world-heading small')!.textContent = village ? 'VILLAGE / TECHNICIAN TOWN' : training ? 'TRAINING / ENGINEERING YARD' : "WORLD 01 / BEGINNER'S FOREST";
     this.root.querySelector('.top-overlay span')!.textContent = '◈ ' + name;
-    this.root.querySelector('.mission b')!.textContent = training ? '출구 포털에 도달하세요' : '숲의 작은 수호자';
-    this.root.querySelector('.mission p')!.textContent = training ? 'A D 이동 · SPACE 점프 · Z 공격 · ↑ 사다리 · E 상호작용' : '몬스터를 사냥하며 조작을 익혀 보세요.';
+    this.root.querySelector('.mission b')!.textContent = village ? '마을 주민 만나기' : training ? '출구 포털에 도달하세요' : '숲의 작은 수호자';
+    this.root.querySelector('.mission p')!.textContent = village ? '주민 곁에서 E · 왼쪽 포털로 숲 이동' : training ? 'A D 이동 · SPACE 점프 · Z 공격 · ↑ 사다리 · E 상호작용' : '몬스터를 사냥하며 조작을 익혀 보세요.';
   }
   update(p: ProgressionSystem, hp: number) {
     const set = (id: string, text: string) => { this.root.querySelector(`#${id}`)!.textContent = text; };

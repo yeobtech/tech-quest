@@ -26,6 +26,26 @@ export function createTextures(scene: Phaser.Scene) {
     g.generateTexture(`player-${pose}`, 80, 60); g.clear();
   };
   (['idle', 'run-1', 'run-2', 'jump', 'attack-1', 'attack-2', 'fall', 'hurt', 'death'] as const).forEach(playerFrame);
+  // Rear view: opposite hand and boot rise together on alternating rungs.
+  for (const phase of [0, 1]) {
+    for (const side of [0, 1]) {
+      const reaching = side === phase;
+      const handX = side ? 51 : 24;
+      const handY = reaching ? 8 : 23;
+      const bootY = reaching ? 52 : 44;
+      g.fillStyle(0x519b94).fillRect(handX, handY + 5, 7, 28 - handY);
+      g.fillStyle(0xe8b783).fillRect(handX, handY, 7, 7);
+      const legX = side ? 43 : 30;
+      g.fillStyle(0x294953).fillRect(legX, 36, 9, bootY - 36);
+      g.fillStyle(0x142e35).fillRect(legX - 1, bootY, 11, 6);
+    }
+    g.fillStyle(0x6bbeb0).fillRect(28, 23, 25, 20);
+    g.fillStyle(0xc9e0ce).fillRect(29, 30, 23, 4);
+    g.fillStyle(0x624d3b).fillRect(32, 10, 17, 13);
+    g.fillStyle(0xe9d581).fillRect(30, 5, 21, 10).fillRect(27, 12, 27, 5);
+    g.generateTexture('player-climb-' + phase, 80, 60);
+    g.clear();
+  }
   g.fillStyle(0x4eab79).fillRoundedRect(2, 8, 42, 30, 12); g.fillStyle(0x9cde89).fillRoundedRect(5, 5, 36, 27, 12); g.fillStyle(0x24493e).fillRect(11, 17, 4, 5).fillRect(29, 17, 4, 5); g.fillStyle(0xd5f3ab).fillRect(15, 8, 9, 4); g.fillStyle(0x68b66a).fillTriangle(22, 8, 17, 0, 30, 1); g.generateTexture('slime', 46, 40); g.clear();
   g.fillStyle(0x4b6563).fillRect(5, 27, 10, 12).fillRect(29, 27, 10, 12); g.fillStyle(0xcea66b).fillRoundedRect(3, 6, 39, 26, 4); g.fillStyle(0x234d53).fillRect(8, 12, 29, 12); g.fillStyle(0xa3e5dd).fillRect(12, 15, 6, 5).fillRect(27, 15, 6, 5); g.fillStyle(0xf1d495).fillRect(20, 0, 5, 7); g.generateTexture('bot', 46, 40); g.clear();
   g.fillStyle(0xffffff).fillRect(0, 0, 32, 32); g.generateTexture('platform', 32, 32); g.destroy();

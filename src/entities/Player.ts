@@ -13,7 +13,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this); scene.physics.add.existing(this);
     this.setSize(30, 56).setOffset(26, 2).setMaxVelocity(PLAYER.speed, 1000).setCollideWorldBounds(true).setDepth(10);
   }
-  move(left: boolean, right: boolean, jump: boolean) {
+  move(left: boolean, right: boolean, jump: boolean, climbing: boolean) {
     if (!this.hp) return;
     const direction = Number(right) - Number(left);
     const now = this.scene.time.now;
@@ -31,6 +31,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     let pose = 'idle';
     if (now < this.hurtUntil) pose = 'hurt';
     else if (attacking) pose = now - this.attackAt < PLAYER.windup ? 'attack-1' : 'attack-2';
+    else if (climbing) pose = 'climb-' + (Math.floor(body.bottom / 18) % 2);
     else if (body.velocity.y < 0) pose = 'jump';
     else if (!grounded) pose = 'fall';
     else if (Math.abs(body.velocity.x) > 5) pose = Math.floor(now / 95) % 2 ? 'run-1' : 'run-2';
