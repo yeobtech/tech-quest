@@ -34,6 +34,8 @@ export class Hud {
     this.root.querySelector('.mission p')!.textContent = village ? '주민 곁에서 E · 왼쪽 포털로 숲 이동' : training ? 'A D 이동 · SPACE 점프 · Z 공격 · ↑↓ 사다리 · E 상호작용' : '몬스터를 사냥하며 조작을 익혀 보세요.';
   }
   update(p: ProgressionSystem, hp: number) {
+    const named=this.root.querySelector('.player-name')!.firstChild!;
+    named.textContent=p.state.learning.completedMissionIds.some(id=>id==='observatory:serial'||id==='observatory:teacher')?'센서 견습 기술자 ':'견습 기술자 ';
     const set = (id: string, text: string) => { this.root.querySelector(`#${id}`)!.textContent = text; };
     set('level', `Lv. ${p.state.level}`); set('hp', `${hp} / ${p.maxHp}`); set('exp', `${p.state.exp} / ${requiredExp(p.state.level)}`); set('gold', p.state.gold.toLocaleString()); set('kills', `누적 처치 ${p.state.kills}마리`);
     (this.root.querySelector('#hp-bar') as HTMLElement).style.width = `${hp / p.maxHp * 100}%`;

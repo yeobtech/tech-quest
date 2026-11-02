@@ -31,6 +31,12 @@ export function openToolBench(state:Progress, greeting:string, save:()=>boolean,
     if(!save()){state.tool=old;status.textContent='공구 변경을 저장하지 못했습니다.';return}
     apply();status.textContent=tools[id].name+' 장착 완료';render();
   }
+  const mission=document.createElement('button');mission.textContent='교관 의뢰 · 고장 난 환경 관측소';
+  panel.querySelector('[data-close]')!.before(mission);
+  mission.onclick=async()=>{mission.disabled=true;try{
+    const {openStation}=await import('../observatory/station');
+    if(panel.open)openStation(state.learning.completedMissionIds,save,()=>panel.close());
+  }catch{status.textContent='관측소를 열지 못했습니다. 다시 시도하세요.'}finally{mission.disabled=false}};
   panel.querySelector<HTMLButtonElement>('[data-close]')!.onclick=()=>panel.close();
   panel.addEventListener('close',()=>{panel.remove();done()},{once:true});
   document.body.append(panel);render();panel.showModal();

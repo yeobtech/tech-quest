@@ -94,7 +94,7 @@ export class GameScene extends Phaser.Scene {
               const ok=this.save.save(this.progress.state); this.hud.saveStatus(ok); return ok;
             };
             if(npc.shop) openShop(this.progress.state,persist,()=>this.applyEquipment(),(w,a,t)=>preview(this,w,a,t),()=>{this.refresh();done()});
-            else if(npc.instructor) openToolBench(this.progress.state,npc.speech,persist,()=>this.applyEquipment(),done);
+            else if(npc.instructor) openToolBench(this.progress.state,npc.speech,persist,()=>this.applyEquipment(),()=>{this.refresh();done()});
             else this.hud.talk(npc,done);
             return;
           }
