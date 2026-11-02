@@ -6,8 +6,8 @@ export class ProgressionSystem {
   constructor(public state: Progress) {}
   get maxHp() { return PLAYER.baseHp + (this.state.level - 1) * PLAYER.hpPerLevel; }
   get attack() { return PLAYER.baseAttack + (this.state.level - 1) * PLAYER.attackPerLevel; }
-  reward(exp: number, gold: number) {
-    this.state.exp += exp; this.state.gold += gold; this.state.kills++;
+  reward(exp: number, gold: number, kill = true) {
+    this.state.exp += exp; this.state.gold += gold; if (kill) this.state.kills++;
     let levels = 0;
     while (this.state.exp >= requiredExp(this.state.level) && this.state.level < 100) { this.state.exp -= requiredExp(this.state.level); this.state.level++; levels++; }
     return levels;

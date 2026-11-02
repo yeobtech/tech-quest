@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FOREST } from '../src/data/maps.ts';
+import { FOREST, TRAINING } from '../src/data/maps.ts';
 import { PLAYER, WORLD_GRAVITY } from '../src/data/config.ts';
 
 test('jump height is approximately half of the previous version', () => {
@@ -24,8 +24,8 @@ test('forest has a reachable sequence of platforms using the configured jump', (
   }
 });
 
-test('each required gap permits a standing jump with takeoff and landing margin', () => {
-  const [ground, ...tiles] = FOREST.platforms;
+for (const map of [FOREST, TRAINING]) test(map.id + ' permits standing jumps with takeoff and landing margin', () => {
+  const [ground, ...tiles] = map.platforms;
   const step = 1 / 60;
   let from = ground;
   for (const to of tiles) {

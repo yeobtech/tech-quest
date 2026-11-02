@@ -30,12 +30,12 @@ export class CombatSystem {
       if (enemy.hp <= 0) { enemy.die(); onKill(enemy); }
     });
   }
-  hit(player: Player, enemy: Enemy): boolean {
-    if (!player.hp || !enemy.active || this.scene.time.now < player.invulnerableUntil) return false;
+  hit(player: Player, damage: number): boolean {
+    if (!player.hp || this.scene.time.now < player.invulnerableUntil) return false;
     player.invulnerableUntil = this.scene.time.now + PLAYER.invulnerability;
-    player.hp = Math.max(0, player.hp - enemy.stats.damage);
+    player.hp = Math.max(0, player.hp - damage);
     player.hurt();
-    this.float(player.x, player.y - 50, `−${enemy.stats.damage}`, '#ff9a96'); return true;
+    this.float(player.x, player.y - 50, `−${damage}`, '#ff9a96'); return true;
   }
   float(x: number, y: number, value: string, color = '#e2ffc1') {
     const text = this.scene.add.text(x, y, value, { fontFamily: 'sans-serif', fontSize: '21px', color, stroke: '#152a25', strokeThickness: 4 }).setOrigin(0.5).setDepth(30);

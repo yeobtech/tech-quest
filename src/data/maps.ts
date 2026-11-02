@@ -16,3 +16,21 @@ export const FOREST: MapData = {
     { kind: 'slime', x: 2880, min: 2740, max: 3060 },
   ],
 };
+
+export const TRAINING: MapData = {
+  id: 'training-yard', name: '기술자 훈련장', width: 2140, spawn: { x: 90, y: 580 },
+  platforms: [
+    { x: 1070, y: 630, w: 2140 }, { x: 325, y: 562, w: 200 },
+    { x: 565, y: 502, w: 200 }, { x: 810, y: 550, w: 210 },
+    { x: 1110, y: 490, w: 230 }, { x: 1390, y: 545, w: 240 },
+    { x: 1650, y: 485, w: 210 }, { x: 1940, y: 430, w: 290 }
+  ],
+  enemies: [{ kind: 'slime', x: 505, min: 420, max: 610 },
+    { kind: 'bot', x: 960, min: 860, max: 1050 },
+    { kind: 'slime', x: 1490, min: 1410, max: 1570 }]
+};
+export const YARD = {
+  ladders: [{ x: 1110, top: 490, bottom: 630 }, { x: 1940, top: 430, bottom: 630 }],
+  spikes: [{ x: 680, y: 630 }, { x: 1260, y: 630 }, { x: 1730, y: 630 }],
+  chest: { x: 580, y: 502 }, exit: { x: 2020, y: 430 }
+};
