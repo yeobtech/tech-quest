@@ -18,7 +18,9 @@ export class CombatSystem {
     });
   }
   private strike(player: Player, enemies: Enemy[], damage: number, onKill: (enemy: Enemy) => void, facing: number) {
-    const range = new Phaser.Geom.Rectangle(player.x + (facing > 0 ? 5 : -105), player.y - 35, 100, 70);
+    // The impact arc ends 38 pixels from the center of either student's frame.
+    const reach = 38, inset = 5;
+    const range = new Phaser.Geom.Rectangle(player.x + (facing > 0 ? inset : -reach), player.y - 35, reach - inset, 70);
     enemies.filter(e => e.active && Phaser.Geom.Intersects.RectangleToRectangle(range, new Phaser.Geom.Rectangle(e.body!.x, e.body!.y, e.body!.width, e.body!.height))).forEach(enemy => {
       enemy.hp -= damage; enemy.stagger(); this.float(enemy.x, enemy.y - 45, `${damage}`, '#fff0a9');
       if (enemy.hp <= 0) { enemy.die(); onKill(enemy); }
