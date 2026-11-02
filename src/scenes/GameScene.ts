@@ -7,7 +7,8 @@ import { CombatSystem } from '../systems/CombatSystem';
 import { ProgressionSystem } from '../systems/ProgressionSystem';
 import { SaveSystem } from '../systems/SaveSystem';
 import { Hud } from '../ui/Hud';
-import { preloadApprentice, assembleApprentice } from './apprentice';
+import { preloadApprentice, assembleApprentice, applyWardrobe, preview } from './apprentice';
+import { openShop } from '../ui/ClothingShop';
 import { createTextures } from './textures';
 export class GameScene extends Phaser.Scene {
   private map: MapData = FOREST;
@@ -33,6 +34,7 @@ export class GameScene extends Phaser.Scene {
     let storage;
     try { storage = window.localStorage; } catch { storage = { getItem: () => null, setItem: () => { throw new Error('Storage unavailable'); } }; }
     this.save = new SaveSystem(storage); this.progress ??= new ProgressionSystem(this.save.load());
+    applyWardrobe(this,this.progress.state.wardrobe.equipped);
     this.physics.world.setBounds(0, 0, this.map.width, 720);
     if (this.map === TRAINING) this.drawTraining();
     else if (this.map === VILLAGE) this.drawVillage();
@@ -76,12 +78,16 @@ export class GameScene extends Phaser.Scene {
             this.player.setVelocity(0).setAccelerationX(0);
             this.scene.pause();
             this.input.keyboard!.enabled = false;
-            this.hud.talk(npc, () => {
+            const done = () => {
               this.input.keyboard!.resetKeys();
               this.input.keyboard!.enabled = true;
               this.scene.resume();
               this.game.canvas.focus();
-            });
+            };
+            if(npc.shop) openShop(this.progress.state,()=>{
+              const ok=this.save.save(this.progress.state); this.hud.saveStatus(ok); return ok;
+            },()=>applyWardrobe(this,this.progress.state.wardrobe.equipped),(w,a)=>preview(this,w,a),()=>{this.refresh();done()});
+            else this.hud.talk(npc,done);
             return;
           }
         }

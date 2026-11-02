@@ -19,7 +19,9 @@ export const characterArt = {
 
 // Layer lists are unrestricted URLs in back-to-front drawing order.
 // Student presets share the same combat and physical configuration.
+export let currentStudent: Student = 'boy';
 export function equipStudent(id: Student) {
+  currentStudent = id;
   for (const action of studentActions)
     characterArt[action].layers = [studentArt(id, action)];
 }
