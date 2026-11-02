@@ -25,13 +25,3 @@ export function equipStudent(id: Student) {
   for (const action of studentActions)
     characterArt[action].layers = [studentArt(id, action)];
 }
-
-export type ToolKind = 'scissors' | 'nippers' | 'stripper' | 'hammer' | 'saw' | 'cutter' | 'glueGun' | 'sandpaper';
-export interface ToolAppearance {
-  kind: ToolKind;
-  attackSheet?: string;
-  damage?: number;
-  effect?: string;
-  requiredSafetyGear?: string[];
-}
-export const starterTool: ToolAppearance = { kind: 'scissors' };

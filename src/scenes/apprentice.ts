@@ -4,6 +4,8 @@ import { characterArt, studentActions, type StudentAction } from '../data/charac
 import layout from '../data/apprentice.json';
 import type { Wardrobe } from '../data/shop';
 import { decorate } from './cosmetics';
+import { pinchPoses } from './nipperLayer';
+import { tools, type ActiveTool } from '../data/tools';
 
 export const APPRENTICE = 'apprentice';
 const clips = layout.clips;
@@ -25,7 +27,7 @@ export function preloadApprentice(scene: Phaser.Scene) {
 
 function externalKey(state: string, layer: number) { return 'hero-art-' + state + '-' + layer; }
 
-function externalFrames(scene: Phaser.Scene, state: StudentAction, equipment?:Wardrobe['equipped']) {
+function externalFrames(scene: Phaser.Scene, state: StudentAction, equipment?:Wardrobe['equipped'],tool:ActiveTool='scissors') {
   const { width, height, foot, facesLeft } = characterArt;
   const { count, layers } = characterArt[state];
   if (!layers.length) return;
@@ -52,13 +54,14 @@ function externalFrames(scene: Phaser.Scene, state: StudentAction, equipment?:Wa
     ctx.save();
     ctx.translate(i * layout.width + ax, ay);
     ctx.scale(facesLeft ? -scale : scale, scale);
-    for (const image of images) ctx.drawImage(image, i * width, 0, width, height, -foot.x, -foot.y, width, height);
+    const pose=state==='attack' && tools[tool].animation==='pinch'?pinchPoses[i]:i;
+    for (const image of images) ctx.drawImage(image, pose * width, 0, width, height, -foot.x, -foot.y, width, height);
     ctx.restore();
     if(equipment) {
       const tile=document.createElement('canvas'); tile.width=layout.width; tile.height=layout.height;
       const brush=tile.getContext('2d')!;
       brush.drawImage(sheet.canvas,i*layout.width,0,layout.width,layout.height,0,0,layout.width,layout.height);
-      decorate(brush,state,i,equipment);
+      decorate(brush,state,pose,equipment,tool,i);
       ctx.clearRect(i*layout.width,0,layout.width,layout.height);
       ctx.drawImage(tile,i*layout.width,0);
     }
@@ -69,22 +72,22 @@ function externalFrames(scene: Phaser.Scene, state: StudentAction, equipment?:Wa
   return frames;
 }
 
-export function applyWardrobe(scene:Phaser.Scene,equipment:Wardrobe['equipped']) {
-  for(const state of studentActions) externalFrames(scene,state,equipment);
+export function applyWardrobe(scene:Phaser.Scene,equipment:Wardrobe['equipped'],tool:ActiveTool='scissors') {
+  for(const state of studentActions) externalFrames(scene,state,equipment,tool);
   // Change the visual cadence within each phase; CombatSystem still starts impact at 95 ms.
   const beats:Record<string,number[]>={reinforced:[42,31,22,55,48,32],starlight:[28,39,28,43,59,33],future:[50,29,16,62,35,38]};
-  const timing=beats[equipment.WeaponSkin??''];
+  const timing=tool==='nippers'?[30,30,35,55,40,40]:beats[equipment.WeaponSkin??''];
   for(const [phase,offset] of [['tech-windup',0],['tech-impact',3]] as const) {
     const animation=scene.anims.get(phase);
     animation.frames.forEach((frame,i)=>{frame.duration=timing?.[offset+i]??0});
   }
 }
-export function preview(scene:Phaser.Scene,item:Wardrobe['equipped'],action:'idle'|'attack'='idle') {
+export function preview(scene:Phaser.Scene,item:Wardrobe['equipped'],action:'idle'|'attack'='idle',tool:ActiveTool='scissors') {
   const c=document.createElement('canvas'); c.width=80;c.height=64;
   const ctx=c.getContext('2d')!, key=externalKey(action,0), i=action==='attack'?3:0;
   if(scene.textures.exists(key)) {
     ctx.drawImage(scene.textures.get(key).getSourceImage() as HTMLImageElement,80*i,0,80,64,0,0,80,64);
-    decorate(ctx,action,i,item);
+    decorate(ctx,action,i,item,tool);
   } else ctx.drawImage(scene.textures.get(APPRENTICE).getSourceImage() as HTMLCanvasElement,i*80,clips[action].row*64,80,64,0,0,80,64);
   return c;
 }

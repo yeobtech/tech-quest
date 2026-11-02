@@ -5,7 +5,7 @@ export const VILLAGE: MapData = {
 };
 export const FOREST_GATE = 50;
 export const VILLAGERS = [
-  { x: 430, name: '기술 교관', building: '학습 공방', coat: 0x69b7a7,
+  { x: 430, instructor:true, name: '기술 교관', building: '학습 공방', coat: 0x69b7a7,
     speech: '견습 기술자, 발판을 X로 측정해 보게. 양 끝에서 뻗는 선은 치수 보조선이고, 너비를 나타내는 선은 치수선이야. 연습하려면 숲 시작점에서 E로 훈련장에 들어가게.' },
   { x: 920, shop:true, name: '상점 주인', building: '작업복 가게', coat: 0xdfab65,
     speech: '새 고글과 가위를 착용해 보세요.' },

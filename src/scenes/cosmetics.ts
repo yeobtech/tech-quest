@@ -1,5 +1,7 @@
 import { currentStudent, type StudentAction } from '../data/characterArt';
 import type { Wardrobe } from '../data/shop';
+import type { ActiveTool } from '../data/tools';
+import { drawNippers } from './nipperLayer';
 
 // Landmarks on the original 80x64 drawings: goggles, bag, scissors hinge and tip.
 // An absent tip means the scissors are holstered or hidden on this pose.
@@ -33,9 +35,11 @@ const palettes:Record<string,string[]> = {
 function stamp(ctx:CanvasRenderingContext2D,x:number,y:number,rows:string[],colors:string[]) {
  rows.forEach((row,j)=>[...row].forEach((s,i)=>{if(s!=='.'){ctx.fillStyle=colors[Number(s)];ctx.fillRect(x+i,y+j,1,1)}}));
 }
-export function decorate(ctx:CanvasRenderingContext2D,action:StudentAction,i:number,w:Wardrobe['equipped']) {
+export function decorate(ctx:CanvasRenderingContext2D,action:StudentAction,i:number,w:Wardrobe['equipped'],tool:ActiveTool='scissors', frame=i) {
  const [hx,hy,bx,by,x,y,tipX,tipY]=(currentStudent==='boy'?boy:girl)[action][i];
- const pal=palettes[w.WeaponSkin??''];
+ if(tool==='nippers' && x!==undefined && y!==undefined && tipX!==undefined && tipY!==undefined)
+   drawNippers(ctx,x,y,tipX,tipY,action==='attack'||action==='idle'||action==='run'||(currentStudent==='girl' && ['jump','fall'].includes(action)),action==='attack',frame);
+ const pal=tool==='scissors'?palettes[w.WeaponSkin??'']:undefined;
  if(pal && x!==undefined && y!==undefined && tipX!==undefined && tipY!==undefined){
    // Remap existing handle/blade pixels along the drawn tool segment, never paste a second blade.
    const pixels=ctx.getImageData(0,0,80,64), a=pixels.data;

@@ -9,6 +9,7 @@ import { SaveSystem } from '../systems/SaveSystem';
 import { Hud } from '../ui/Hud';
 import { preloadApprentice, assembleApprentice, applyWardrobe, preview } from './apprentice';
 import { openShop } from '../ui/ClothingShop';
+import { openToolBench } from '../ui/ToolBench';
 import { createTextures } from './textures';
 export class GameScene extends Phaser.Scene {
   private map: MapData = FOREST;
@@ -34,7 +35,7 @@ export class GameScene extends Phaser.Scene {
     let storage;
     try { storage = window.localStorage; } catch { storage = { getItem: () => null, setItem: () => { throw new Error('Storage unavailable'); } }; }
     this.save = new SaveSystem(storage); this.progress ??= new ProgressionSystem(this.save.load());
-    applyWardrobe(this,this.progress.state.wardrobe.equipped);
+    this.applyEquipment();
     this.physics.world.setBounds(0, 0, this.map.width, 720);
     if (this.map === TRAINING) this.drawTraining();
     else if (this.map === VILLAGE) this.drawVillage();
@@ -84,9 +85,11 @@ export class GameScene extends Phaser.Scene {
               this.scene.resume();
               this.game.canvas.focus();
             };
-            if(npc.shop) openShop(this.progress.state,()=>{
+            const persist=()=>{
               const ok=this.save.save(this.progress.state); this.hud.saveStatus(ok); return ok;
-            },()=>applyWardrobe(this,this.progress.state.wardrobe.equipped),(w,a)=>preview(this,w,a),()=>{this.refresh();done()});
+            };
+            if(npc.shop) openShop(this.progress.state,persist,()=>this.applyEquipment(),(w,a,t)=>preview(this,w,a,t),()=>{this.refresh();done()});
+            else if(npc.instructor) openToolBench(this.progress.state,npc.speech,persist,()=>this.applyEquipment(),done);
             else this.hud.talk(npc,done);
             return;
           }
@@ -102,8 +105,9 @@ export class GameScene extends Phaser.Scene {
       if (levels) { this.player.hp = this.progress.maxHp; this.combat.float(this.player.x, this.player.y - 80, 'LEVEL UP!', '#f3d98b'); this.hud.notice(`레벨 ${this.progress.state.level} 달성! 체력과 공격력이 올랐습니다.`); }
       else this.hud.notice(`${enemy.stats.name} 처치 · 경험치 +${enemy.stats.exp}, 골드 +${enemy.stats.gold}`);
       this.hud.saveStatus(this.save.save(this.progress.state)); this.refresh();
-    });
+    },this.progress.state.tool);
   }
+  private applyEquipment(){ applyWardrobe(this,this.progress.state.wardrobe.equipped,this.progress.state.tool); }
   private receiveDamage(damage: number) {
       if (!this.combat.hit(this.player, damage)) return;
       if (this.player.hp <= 0) {

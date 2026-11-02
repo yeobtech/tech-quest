@@ -1,4 +1,4 @@
-import type { ToolKind } from './characterArt';
+import type { ToolKind } from './tools';
 
 export type Slot = 'Head' | 'Outfit' | 'Back' | 'Gloves' | 'WeaponSkin';
 export interface Item {

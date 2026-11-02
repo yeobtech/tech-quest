@@ -1,11 +1,12 @@
 import Phaser from 'phaser';
 import { PLAYER } from '../data/config';
+import { tools, type ActiveTool } from '../data/tools';
 import type { Player } from '../entities/Player';
 import type { Enemy } from '../entities/Enemy';
 export class CombatSystem {
   private nextAttack = 0;
   constructor(private scene: Phaser.Scene) {}
-  attack(player: Player, enemies: Enemy[], damage: number, onKill: (enemy: Enemy) => void) {
+  attack(player: Player, enemies: Enemy[], damage: number, onKill: (enemy: Enemy) => void, tool:ActiveTool='scissors') {
     const now = this.scene.time.now;
     if (!player.canAttack || now < this.nextAttack) return;
     this.nextAttack = now + PLAYER.cooldown;
@@ -14,12 +15,11 @@ export class CombatSystem {
     this.scene.time.delayedCall(PLAYER.windup, () => {
       if (!player.canAttack) return;
       player.play('tech-impact');
-      this.strike(player, enemies, damage, onKill, facing);
+      this.strike(player, enemies, damage+tools[tool].damageBonus, onKill, facing, tools[tool].reach);
     });
   }
-  private strike(player: Player, enemies: Enemy[], damage: number, onKill: (enemy: Enemy) => void, facing: number) {
-    // The impact arc ends 38 pixels from the center of either student's frame.
-    const reach = 38, inset = 5;
+  private strike(player: Player, enemies: Enemy[], damage: number, onKill: (enemy: Enemy) => void, facing: number, reach:number) {
+    const inset = 5;
     const range = new Phaser.Geom.Rectangle(player.x + (facing > 0 ? inset : -reach), player.y - 35, reach - inset, 70);
     enemies.filter(e => e.active && Phaser.Geom.Intersects.RectangleToRectangle(range, new Phaser.Geom.Rectangle(e.body!.x, e.body!.y, e.body!.width, e.body!.height))).forEach(enemy => {
       enemy.hp -= damage; enemy.stagger(); this.float(enemy.x, enemy.y - 45, `${damage}`, '#fff0a9');
