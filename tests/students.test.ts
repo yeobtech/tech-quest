@@ -1,12 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { characterArt, equipStudent } from '../src/data/characterArt.ts';
+import { characterArt, equipStudent, studentActions } from '../src/data/characterArt.ts';
 
-test('both student presets supply three transparent strips matching their Phaser grids', () => {
+test('both student presets supply external RGBA strips matching their Phaser grids', () => {
   for (const id of ['boy', 'girl'] as const) {
     equipStudent(id);
-    for (const action of ['idle', 'run', 'attack'] as const) {
+    for (const action of studentActions) {
       const clip = characterArt[action];
       const png = readFileSync(new URL('../public/' + clip.layers[0], import.meta.url));
       assert.equal(png.toString('ascii', 12, 16), 'IHDR');

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { PLAYER } from '../data/config';
-import { characterArt } from '../data/characterArt';
+import { characterArt, studentActions, type StudentAction } from '../data/characterArt';
 import layout from '../data/apprentice.json';
 
 export const APPRENTICE = 'apprentice';
@@ -9,7 +9,7 @@ type Clip = keyof typeof clips;
 const fps: Record<Clip, number> = { idle: 2, walk: 9, run: 14, jump: 6, fall: 6, attack: 24, hurt: 12, death: 10, climb: 10 };
 
 export function preloadApprentice(scene: Phaser.Scene) {
-  for (const state of ['idle', 'run', 'attack'] as const) {
+  for (const state of studentActions) {
     characterArt[state].layers.forEach((url, i) => {
       const key = externalKey(state, i);
       if (!scene.textures.exists(key)) scene.load.image(key, url);
@@ -23,7 +23,7 @@ export function preloadApprentice(scene: Phaser.Scene) {
 
 function externalKey(state: string, layer: number) { return 'hero-art-' + state + '-' + layer; }
 
-function externalFrames(scene: Phaser.Scene, state: 'idle' | 'run' | 'attack') {
+function externalFrames(scene: Phaser.Scene, state: StudentAction) {
   const { width, height, foot, facesLeft } = characterArt;
   const { count, layers } = characterArt[state];
   if (!layers.length) return;
@@ -67,7 +67,7 @@ export function assembleApprentice(scene: Phaser.Scene) {
   sheet.refresh().setFilter(Phaser.Textures.FilterMode.NEAREST);
   for (const state of Object.keys(clips) as Clip[]) {
     const { row, count } = clips[state];
-    const replacement = state === 'idle' || state === 'run' || state === 'attack' ? externalFrames(scene, state) : undefined;
+    const replacement = state !== 'walk' ? externalFrames(scene, state) : undefined;
     const fallback = Array.from({ length: count }, (_, i) => {
       const frame = state + '-' + i;
       sheet.add(frame, 0, i * layout.width, row * layout.height, layout.width, layout.height);
@@ -79,7 +79,7 @@ export function assembleApprentice(scene: Phaser.Scene) {
       scene.anims.create({ key: 'tech-windup', frames: frames.slice(0, impact), frameRate: impact * 1000 / PLAYER.windup });
       scene.anims.create({ key: 'tech-impact', frames: frames.slice(impact), frameRate: (frames.length - impact) * 1000 / (PLAYER.swing - PLAYER.windup) });
     } else {
-      scene.anims.create({ key: 'tech-' + state, frames, frameRate: replacement && (state === 'idle' || state === 'run') ? characterArt[state].fps : fps[state],
+      scene.anims.create({ key: 'tech-' + state, frames, frameRate: replacement && state !== 'walk' ? characterArt[state].fps : fps[state],
         repeat: ['hurt','death'].includes(state) ? 0 : -1 });
     }
   }
