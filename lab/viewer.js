@@ -1,5 +1,5 @@
 // Shared camera and picking for the standalone lab and the embedded mission.
-export function setupViewer({T,scene,cam,orbit,renderer,canvas,categories,hits,missionTargets}) {
+export function setupViewer({T,scene,cam,orbit,renderer,canvas,categories,hits,missionTargets,freeTargets=[],onFreePin}) {
   const el=id=>document.getElementById(id);
   const post=data=>{if(missionTargets)parent.postMessage(data,location.origin)};
   const markers=[0x1676ae,0xca5907].map(color=>{
@@ -54,7 +54,10 @@ export function setupViewer({T,scene,cam,orbit,renderer,canvas,categories,hits,m
   el('parts').onchange=()=>{const part=categories[el('parts').selectedIndex];if(part.name.includes('뒷면'))el('back').click();selectPart(part)};
   el('usbGuide').onclick=()=>{front();selectPart(categories.find(p=>p.name==='USB PROG'))};
   const pinById=new Map((missionTargets??[]).map(o=>[o.userData.id,o]));
-  function selectPin(o){const id=o.userData.id;select([o],{name:id,gpio:'',volts:'',use:''})}
+  function selectPin(o){const [side,key]=o.userData.id.split(':');
+    select([o],{name:(side==='S'?'DHT11 · ':'KS5034 · ')+(key==='DATA'?'DAT':key),
+      gpio:key.startsWith('GPIO')?key.slice(4):'—',volts:key==='GND'?'0 V':key==='5V'?'5 V':'3.3 V 실습',
+      use:key==='GND'?'공통 접지':key==='DATA'||key.startsWith('GPIO')?'디지털 신호 접점':'전원 접점'})}
   window.addEventListener('message',event=>{
     if(!missionTargets||event.origin!==location.origin||event.source!==parent||event.data?.type!=='ks5034:select')return;
     const mesh=pinById.get(event.data.id);if(mesh)selectPin(mesh);
@@ -64,13 +67,13 @@ export function setupViewer({T,scene,cam,orbit,renderer,canvas,categories,hits,m
   function pick(event){
     const r=canvas.getBoundingClientRect(),x=event.clientX-r.left,y=event.clientY-r.top;
     ray.setFromCamera(new T.Vector2(2*x/r.width-1,1-2*y/r.height),cam);
-    const solid=ray.intersectObjects(scene.children,false).find(h=>h.object.isMesh&&!h.object.material.transparent);
+    const solid=ray.intersectObjects(scene.children.filter(o=>o.visible),true).find(h=>h.object.isMesh&&!h.object.material.transparent);
     // Resolve a slightly enlarged screen-space footprint by closest projected centre.
     // Occluded pins on the reverse side must not take precedence over the PCB.
     let nearest=null,best=Infinity;
-    const candidates=missionTargets??hits.filter(o=>o.geometry.parameters.width<=2.54);
+    const candidates=missionTargets??[...freeTargets.filter(o=>o.visible && o.parent.visible),...hits.filter(o=>o.geometry.parameters.width<=2.54)];
     for(const mesh of candidates){
-      const world=mesh.position,depth=world.clone().applyMatrix4(cam.matrixWorldInverse).z;
+      const world=mesh.getWorldPosition(new T.Vector3()),depth=world.clone().applyMatrix4(cam.matrixWorldInverse).z;
       if(depth>=0||(solid&&cam.position.distanceTo(world)>solid.distance+2.2))continue;
       const pt=world.clone().project(cam);
       const distance=Math.hypot((pt.x+1)*r.width/2-x,(1-pt.y)*r.height/2-y);
@@ -90,7 +93,7 @@ export function setupViewer({T,scene,cam,orbit,renderer,canvas,categories,hits,m
   canvas.addEventListener('pointerup',e=>{
     if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;
     const obj=pick(e);down=null;
-    if(obj?.userData.id){selectPin(obj);post({type:'ks5034:pin',id:obj.userData.id})}
+    if(obj?.userData.id){selectPin(obj);if(missionTargets)post({type:'ks5034:pin',id:obj.userData.id});else onFreePin(obj.userData.id)}
     else if(obj?.userData.part)selectPart(obj.userData.part);
   });
   el('focus').disabled=true;
