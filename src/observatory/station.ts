@@ -6,17 +6,21 @@ import './station.css';
 
 export function openStation(ids:string[],save:()=>boolean,done:()=>void){
  const d=document.createElement('dialog');d.className='workshop station';d.setAttribute('aria-labelledby','station-title');
- d.innerHTML=`<small>기술 교관의 의뢰 · 첫 번째 보스</small><h2 id="station-title">고장 난 환경 관측소</h2>
+ d.innerHTML=`<div class="station-head"><div><small>기술 교관 의뢰 · KS5034 LAB</small><h2 id="station-title">고장 난 온습도 관측소</h2></div><button data-exit>실습 종료 · 마을로 복귀</button></div>
+ <div class="station-body"><div data-board></div><aside aria-label="배선 실습 정보">
+ <p class="objective">DHT11의 전원·GND·DATA를 연결하세요.</p>
+ <h3>선택 단자</h3><strong data-inspect>단자를 선택하세요</strong><p data-details>보드에서 핀을 누르거나 아래 버튼으로 선택하세요.</p>
+ <div data-pins></div><p data-selected aria-live="polite"></p>
+ <h3>연결 목록 <span data-count></span></h3><div class="wire-key" aria-label="케이블 색상"><span>전원</span><span>접지</span><span>신호</span></div><div data-wires></div><button data-reset>배선 초기화</button>
+ <h3>배선 검사</h3><label>가상 센서 사양 <select data-profile><option value="unknown">미확인</option><option value="3v3">3.3V 호환 · DATA 풀업 3.3V</option><option value="5v">5V 전원 또는 DATA 풀업 5V</option></select></label>
+ <button data-check>배선 검사</button><p data-wiremsg role="status"></p>
  <div class="shield"><span class="golem" aria-hidden="true">▣ ▣</span><div><b>센서 오류 골렘</b><p data-shield></p></div></div>
- <h3>1 · 관측소 회로 복구</h3><p>KS5034 Lab v4 · 앞면과 뒷면을 살펴보고 색 핀을 선택하세요. 모델은 교육용이며 실물 배선은 모듈의 핀 표기를 확인하세요.</p>
- <div data-board></div><p><a href="./lab/index.html" target="_blank" rel="noopener">자유 실험실 열기 · DHT11 / HC-SR04</a></p><label>가상 센서 사양 <select data-profile><option value="unknown">미확인</option><option value="3v3">3.3V 호환 · DATA 풀업 3.3V</option><option value="5v">5V 전원 또는 DATA 풀업 5V</option></select></label>
- <p>보드 핀 하나와 센서 핀 하나를 차례로 선택하세요. 같은 센서 핀에 다시 연결하면 선이 교체됩니다.</p><div data-pins></div><small data-selected></small><div data-wires></div><button data-check>배선 검사</button><p data-wiremsg role="status"></p>
  <h3>2 · 온습도 수신</h3><p>실물은 전원 차단 후 모듈 핀 배열과 전압을 확인하세요. 5V DATA를 GPIO에 직접 연결하지 마세요.</p>
  <label><input type="checkbox" data-safe> 실물의 VCC·GND·DATA 배열, 3.3V 동작 및 DATA 풀업 3.3V를 확인함</label>
  <div><button data-connect>실제 USB 장치 연결</button> <button data-stop>연결 해제</button> <button data-mock>Mock 연습</button></div>
  <p data-link role="status"></p><output data-reading>온도 — °C · 습도 — %</output>
  <h3>3 · 방어막 진단</h3><label>입력 → 처리 → 출력에 해당하는 순서는?<select data-answer><option value="">선택하세요</option><option>USB로 출력 → 센서 측정 → 보드에서 검사</option><option>${principle}</option></select></label>
- <button data-unlock>방어막 해제</button><p data-result role="status"></p><button data-exit>마을로 복귀</button>`;
+ <button data-unlock>방어막 해제</button><p data-result role="status"></p><p><a href="./lab/index.html" target="_blank" rel="noopener">자유 실험실 열기 ↗</a></p><small>교육용 가상 모델 · 실물은 핀 표기를 확인하세요.</small></aside></div>`;
  document.body.append(d);d.showModal();
  const get=<T extends HTMLElement>(k:string)=>d.querySelector<T>('[data-'+k+']')!;
  const btn=(k:string)=>get<HTMLButtonElement>(k);
@@ -39,18 +43,39 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void){
  function changed(){
    stop();m.setWired(false);get('wiremsg').textContent='배선 검사 후 진행하세요.';
    const list=get('wires');list.replaceChildren();
-   for(const pin of inputs)if(w[pin])list.append(controls(w[pin]+' → '+pin+' · 삭제',()=>{delete w[pin];changed()}));
+   for(const pin of inputs)if(w[pin])list.append(controls('KS5034 '+w[pin]+' → DHT11 '+pin+' · 삭제',()=>{delete w[pin];changed()}));
+   const count=Object.keys(w).length;
+   get('count').textContent=count+' / 3';
+   if(!count)list.textContent='연결된 선이 없습니다.';
+   btn('reset').disabled=!count && !selected;
    board?.update(w);refresh();
  }
+ const expected={VCC:'3V3',DATA:'GPIO4',GND:'GND'} as const;
+ const description:Record<string,string>={
+   'B:GPIO4':'GPIO4 · 3.3 V 로직 · DHT11 DATA를 읽는 디지털 입력',
+   'B:3V3':'3.3 V · 센서에 전원을 공급하는 단자',
+   'B:5V':'5 V · 이 실습에서는 연결하면 안 되는 전원',
+   'B:GND':'0 V · 센서와 기준 전위를 공유하는 접지',
+   'S:VCC':'전원 입력 · 3.3 V 호환 모듈을 가정합니다.',
+   'S:DATA':'온습도 신호 · 보드 GPIO4로 연결합니다.',
+   'S:GND':'0 V · 보드 GND로 연결합니다.'
+ };
+ function inspect(name:string,details:string){get('inspect').textContent=name;get('details').textContent=details}
  function choose(id:string){
+   inspect((id[0]==='B'?'KS5034 · ':'DHT11 · ')+id.slice(2),description[id]);
+   board?.highlight(id);
    if(!selected||selected[0]===id[0])selected=selected===id?'':id;
    else{const [b,s]=id[0]==='B'?[id,selected]:[selected,id];w[s.slice(2) as SensorPin]=b.slice(2) as BoardPin;selected='';changed()}
-   get('selected').textContent=selected?'선택한 핀: '+selected:'';
+   get('selected').textContent=selected?'● 선택됨 · '+selected.slice(2)+' — '+(selected[0]==='B'?'센서':'보드')+' 핀을 선택하세요.':'다음 연결을 선택할 수 있습니다.';
+   for(const button of Array.from(get('pins').querySelectorAll('button')))button.setAttribute('aria-pressed',String(button.dataset.pin===selected));
+   btn('reset').disabled=!Object.keys(w).length&&!selected;
  }
- for(const [prefix,pins] of [['B',outputs],['S',inputs]] as const){const row=document.createElement('div');row.append(prefix==='B'?'KS5034 ':'DHT11 ');for(const pin of pins)row.append(controls(pin,()=>choose(prefix+':'+pin)));get('pins').append(row)}
- try{board=makeBoard(get('board'),choose)}catch{get('board').textContent='WebGL을 사용할 수 없습니다. 아래 핀 버튼으로 같은 회로를 연결하세요.'}
+ for(const [prefix,pins] of [['B',outputs],['S',inputs]] as const){const row=document.createElement('div');row.append(prefix==='B'?'KS5034 ':'DHT11 ');for(const pin of pins){const id=prefix+':'+pin;const button=controls(pin,()=>choose(id));button.dataset.pin=id;row.append(button);}get('pins').append(row)}
+ btn('reset').onclick=()=>{for(const pin of inputs)delete w[pin];selected='';board?.highlight('');inspect('단자를 선택하세요','보드 또는 센서의 핀을 선택하세요.');get('selected').textContent='';get('pins').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed','false'));changed()};
+ try{board=makeBoard(get('board'),choose,inspect)}catch{get('board').textContent='WebGL을 사용할 수 없습니다. 아래 핀 버튼으로 같은 회로를 연결하세요.'}
  get('profile').onchange=changed;get<HTMLInputElement>('safe').onchange=()=>{if(!get<HTMLInputElement>('safe').checked)stop();refresh()};
- btn('check').onclick=()=>{stop();const msg=wiringError(w,get<HTMLSelectElement>('profile').value as Profile);m.setWired(!msg);get('wiremsg').textContent=msg??'가상 회로 정상 · 실물 배선 확인과는 별개입니다.';refresh()};
+ btn('check').onclick=()=>{stop();const msg=wiringError(w,get<HTMLSelectElement>('profile').value as Profile);m.setWired(!msg);const wrong=inputs.filter(pin=>w[pin]!==expected[pin]);
+ get('wiremsg').textContent=msg?'⚠ '+msg+' '+wrong.map(pin=>'DHT11 '+pin+' → KS5034 '+expected[pin]+(w[pin]?'로 교체':' 연결')).join(', '):'✓ 가상 회로 정상 · 세 단자가 올바르게 연결됐습니다.';refresh()};
  btn('mock').onclick=()=>{stop();let n=0;const tick=()=>{const v={temperature:24+(n++%3),humidity:55};m.receive('mock',v);get('link').textContent='Mock 연습 · 실제 측정 횟수에 포함되지 않습니다.';get('reading').textContent='Mock · '+v.temperature+' °C / '+v.humidity+' %'};tick();mock=window.setInterval(tick,2000);refresh()};
  btn('stop').onclick=stop;
  btn('connect').onclick=async()=>{

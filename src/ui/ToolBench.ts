@@ -31,7 +31,7 @@ export function openToolBench(state:Progress, greeting:string, save:()=>boolean,
     if(!save()){state.tool=old;status.textContent='공구 변경을 저장하지 못했습니다.';return}
     apply();status.textContent=tools[id].name+' 장착 완료';render();
   }
-  const mission=document.createElement('button');mission.textContent='교관 의뢰 · 고장 난 환경 관측소';
+  const mission=document.createElement('button');mission.textContent='교관 의뢰 · 고장 난 온습도 관측소';
   panel.querySelector('[data-close]')!.before(mission);
   mission.onclick=async()=>{mission.disabled=true;try{
     const {openStation}=await import('../observatory/station');
