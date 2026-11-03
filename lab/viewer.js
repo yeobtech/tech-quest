@@ -112,13 +112,72 @@ export function setupViewer({T,scene,wiring,cam,orbit,renderer,canvas,categories
   }
   const objectsFor=o=>(o?.userData.id||o?.userData.cable)?[o]:o?.userData.part?.objects;
   let down=null;
-  canvas.addEventListener('pointerdown',e=>{transition=null;down=[e.clientX,e.clientY]});
+  const help=document.querySelector('.hint');
+  const instructions='접점에서 접점으로 끌어 연결 · 빈 곳을 끌어 회전';
+  help.textContent=instructions;
+  const ns='http://www.w3.org/2000/svg';
+  const overlay=document.createElementNS(ns,'svg'), cord=document.createElementNS(ns,'path'), tip=document.createElementNS(ns,'circle');
+  overlay.classList.add('cable-drag');overlay.setAttribute('aria-hidden','true');overlay.append(cord,tip);document.body.append(overlay);
+  let gesture=null;
+  function screenPoint(mesh){
+    const rect=canvas.getBoundingClientRect();
+    const v=mesh.localToWorld(mesh.userData.anchor?.clone()??new T.Vector3()).project(cam);
+    return {x:rect.left+(v.x+1)*rect.width/2,y:rect.top+(1-v.y)*rect.height/2};
+  }
+  function targetFor(e){
+    const hit=pick(e);
+    return hit?.userData.id && hit.userData.id[0]!==gesture.pin.userData.id[0]?hit:null;
+  }
+  function endGesture(){
+    if(!gesture)return;
+    const id=gesture.pointerId;gesture=null;down=null;
+    overlay.classList.remove('active','snap');mark(markers[0],null);
+    canvas.style.cursor='grab';help.textContent=instructions;
+    if(canvas.hasPointerCapture(id))canvas.releasePointerCapture(id);
+  }
+  canvas.addEventListener('pointerdown',e=>{
+    transition=null;
+    if(gesture){e.stopImmediatePropagation();return}
+    down=[e.clientX,e.clientY];
+    if(!e.isPrimary||e.button!==0)return;
+    const pin=pick(e);if(!pin?.userData.id)return;
+    gesture={pin,pointerId:e.pointerId,dragging:false};canvas.setPointerCapture(e.pointerId);
+    e.stopImmediatePropagation(); // Reserve a terminal press before OrbitControls receives it.
+  },true);
+  canvas.addEventListener('pointercancel',endGesture);
+  canvas.addEventListener('lostpointercapture',endGesture);
+  window.addEventListener('blur',endGesture);
+  window.addEventListener('keydown',e=>{if(gesture&&e.key==='Escape'){e.preventDefault();endGesture()}});
   canvas.addEventListener('pointermove',e=>{
+    if(gesture){
+      if(gesture.pointerId!==e.pointerId)return;
+      if(!gesture.dragging&&Math.hypot(e.clientX-down[0],e.clientY-down[1])<5)return;
+      gesture.dragging=true;
+      const hit=targetFor(e),a=screenPoint(gesture.pin),b=hit?screenPoint(hit):{x:e.clientX,y:e.clientY};
+      const lift=Math.min(48,Math.hypot(a.x-b.x,a.y-b.y)*.24);
+      cord.setAttribute('d',`M ${a.x} ${a.y} Q ${(a.x+b.x)/2} ${(a.y+b.y)/2-lift} ${b.x} ${b.y}`);
+      tip.setAttribute('cx',b.x);tip.setAttribute('cy',b.y);tip.setAttribute('r',hit?7:4);
+      overlay.classList.add('active');overlay.classList.toggle('snap',!!hit);mark(markers[0],hit?[hit]:null);
+      help.textContent=hit?'● '+hit.userData.id.slice(2)+' · 놓으면 연결됩니다.':'반대쪽 접점에 놓으세요 · 빈 곳에 놓으면 취소';
+      canvas.style.cursor=hit?'copy':'crosshair';return;
+    }
     if(e.buttons)return;
     const objects=objectsFor(pick(e));mark(markers[0],objects);canvas.style.cursor=objects?'pointer':'grab';
   });
   canvas.addEventListener('pointerleave',()=>mark(markers[0],null));
   canvas.addEventListener('pointerup',e=>{
+    if(gesture){
+      if(gesture.pointerId!==e.pointerId)return;
+      const {pin,dragging}=gesture,hit=dragging?targetFor(e):pin;
+      endGesture();
+      if(hit){
+        selectPin(hit);
+        const id=hit.userData.id,start=dragging?pin.userData.id:undefined;
+        if(missionTargets)post({type:'ks5034:pin',id,start});else onFreePin(id,start);
+        if(dragging)help.textContent='✓ '+start.slice(2)+' ↔ '+id.slice(2)+' 연결';
+      }
+      return;
+    }
     if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;
     const obj=pick(e);down=null;
     if(obj?.userData.id){selectPin(obj);if(missionTargets)post({type:'ks5034:pin',id:obj.userData.id});else onFreePin(obj.userData.id)}

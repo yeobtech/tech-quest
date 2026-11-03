@@ -61,7 +61,8 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void){
    'S:GND':'0 V · 보드 GND로 연결합니다.'
  };
  function inspect(name:string,details:string){get('inspect').textContent=name;get('details').textContent=details}
- function choose(id:string){
+ function choose(id:string,start?:string){
+   if(start)selected=start;
    inspect((id[0]==='B'?'KS5034 · ':'DHT11 · ')+id.slice(2),description[id]);
    board?.highlight(id);
    if(!selected||selected[0]===id[0])selected=selected===id?'':id;

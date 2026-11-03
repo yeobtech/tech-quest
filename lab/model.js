@@ -124,7 +124,8 @@ for(const [prefix,names] of [['S',['DATA','VCC','GND']],['B',Object.keys(freePos
   pinButtons.append(row);
 }
 directHint.after(pinButtons);
-function directPin(id){
+function directPin(id,start){
+  if(start)pending=start;
   if(!pending||pending[0]===id[0])pending=pending===id?'':id;
   else {
     const board=id.startsWith('B:')?id:pending;
@@ -133,7 +134,7 @@ function directPin(id){
     if(sensor==='S:DATA' && board.startsWith('B:GPIO'))$('data').value=board.slice(6);
     pending='';refresh();
   }
-  directHint.textContent=pending?'● 선택됨 · '+pending.slice(2)+' — 반대쪽 접점을 누르세요.':'DHT11과 보드의 접점을 차례로 눌러 연결하세요.';
+  directHint.textContent=pending?'● 선택됨 · '+pending.slice(2)+' — 반대쪽 접점을 누르세요.':'DHT11 핀을 보드 접점까지 끌어 놓거나, 두 접점을 차례로 누르세요.';
 }
 const disconnected=new Set();
 const list=document.createElement('div');
@@ -200,7 +201,7 @@ function refresh(){
 }
 $('inputs').onchange=event=>{
   if(event.target.id==='data'){if($('data').value)dhtWires.DATA='GPIO'+$('data').value;else delete dhtWires.DATA}
-  if(event.target.id==='dht'){pending='';directHint.textContent=$('dht').checked?'DHT11과 보드의 접점을 차례로 눌러 연결하세요.':''}
+  if(event.target.id==='dht'){pending='';directHint.textContent=$('dht').checked?'DHT11 핀을 보드 접점까지 끌어 놓거나, 두 접점을 차례로 누르세요.':''}
   refresh();
   if(['hc','dht'].includes(event.target.id))$('all').click();
 };
