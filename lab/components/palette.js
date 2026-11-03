@@ -10,6 +10,7 @@ export function installPalette({scene,cam,canvas,onPartsChange}){
   document.querySelector('aside').prepend(panel);
   const status=panel.querySelector('.placement-status'),list=panel.querySelector('.placed-list');
   const ray=new T.Raycaster(),floor=new T.Plane(new T.Vector3(0,1,0),0);
+  const boardParts=scene.children.filter(o=>o.userData.part).map(o=>new T.Box3().setFromObject(o));
   let armed=null,drag=null,ghost=null;
   function arm(id){
     armed=id;
@@ -42,10 +43,18 @@ export function installPalette({scene,cam,canvas,onPartsChange}){
       item={model,name:id==='dht11'?name+' · '+variant:name};placed.set(id,item);
       const marks=model.getObjectByName('Terminal labels');marks.userData.pinLabel=true;
       marks.visible=document.getElementById('labels').checked;
-      const shape=new T.Box3().setFromObject(model);item.base=-shape.min.y;
+      item.bounds=new T.Box3().setFromObject(model);
       scene.add(model);
     }
-    item.model.position.copy(point);item.model.position.y+=item.base;
+    const footprint=item.bounds.clone().translate(point);
+    let supportY=0;
+    for(const bounds of boardParts){
+      if(footprint.max.x>=bounds.min.x && footprint.min.x<=bounds.max.x &&
+         footprint.max.z>=bounds.min.z && footprint.min.z<=bounds.max.z){
+        supportY=Math.max(supportY,bounds.max.y);
+      }
+    }
+    item.model.position.set(point.x,supportY-item.bounds.min.y,point.z);
     item.model.updateMatrixWorld(true);
     onPartsChange();renderList();arm(null);status.textContent=item.name+' 배치됨 · 카드를 다시 끌면 위치를 옮깁니다.';
   }
@@ -54,10 +63,6 @@ export function installPalette({scene,cam,canvas,onPartsChange}){
     if(!armed||x<rect.left||x>rect.right||y<rect.top||y>rect.bottom)return false;
     ray.setFromCamera(new T.Vector2((x-rect.left)/rect.width*2-1,1-(y-rect.top)/rect.height*2),cam);
     const point=ray.ray.intersectPlane(floor,new T.Vector3());if(!point)return false;
-    if(Math.abs(point.x)<34.5&&Math.abs(point.z)<27){
-      const support=ray.intersectObjects(scene.children.filter(o=>o.isMesh&&!o.material.transparent),false)[0];
-      if(support)point.copy(support.point);
-    }
     place(armed,point);return true;
   }
   function endDrag(){ghost?.remove();ghost=null;drag=null}

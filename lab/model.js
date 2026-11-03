@@ -8,9 +8,9 @@ const $=id=>document.getElementById(id), scene=new T.Scene(), canvas=document.qu
 const renderer=new T.WebGLRenderer({canvas,antialias:true}); renderer.setPixelRatio(Math.min(devicePixelRatio,2));scene.background=new T.Color(0xe6eee8);
 const cam=new T.PerspectiveCamera(35,1,1,400), orbit=new OrbitControls(cam,canvas); orbit.enablePan=false;orbit.minDistance=38;orbit.maxDistance=200;
 scene.add(new T.HemisphereLight(0xffffff,0xb5bdb7,2));const lamp=new T.DirectionalLight(0xffffff,2);lamp.position.set(-30,60,20);scene.add(lamp);
-const categories=[], hits=[];let current=null;
+const categories=[];let current=null;
 function part(name,type,gpio,volts,use){current={name,type,gpio,volts,use,objects:[]};categories.push(current);return current}
-function block(x,z,w,d,h,color,y=h/2){const m=new T.Mesh(new T.BoxGeometry(w,h,d),new T.MeshStandardMaterial({color}));m.position.set(x,y,z);scene.add(m);if(current){current.objects.push(m);m.userData.part=current;hits.push(m)}return m}
+function block(x,z,w,d,h,color,y=h/2){const m=new T.Mesh(new T.BoxGeometry(w,h,d),new T.MeshStandardMaterial({color}));m.position.set(x,y,z);scene.add(m);if(current){current.objects.push(m);m.userData.part=current}return m}
 function label(str,x,z,w,y=0.15){const c=document.createElement('canvas');c.width=512;c.height=64;const g=c.getContext('2d');g.fillStyle='#ffe287';g.font='bold 47px sans-serif';g.textAlign='center';g.fillText(str,256,49);const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;const m=new T.Mesh(new T.PlaneGeometry(w,w/8),new T.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false}));m.rotation.x=-Math.PI/2;m.position.set(x,y,z);scene.add(m)}
 const gray=0xbac4ca,black=0x232829,yellow=0xffbc30,red=0xb73b39,blue=0x217bb1,unknown='소켓별 GPIO 미확정',io='신호 3.3 V',port='소자 연결',built='보드 기능';
 block(0,0,69,54,1.4,0x202828,-.7);label('keyestudio S3 Pro',20,-10,25);label('I2C BUS',-1,-5,11);label('POWER',1,19,10);label('ANALOG',21,19,11);label('DIGITAL',7,-22,13);
@@ -64,6 +64,7 @@ for(const [name,x,g] of [['RESET',-31,'EN'],['BOOT',-26,'GPIO0']]){part(name,bui
 const legend=document.createElement('details');legend.open=false;
 legend.innerHTML='<summary><b>핀 번호표</b></summary><p>숫자는 GPIO 번호입니다. 가로 핀열은 왼쪽부터, 세로 핀열은 위에서부터 읽으세요. ?는 미확정입니다.</p>';
 document.querySelector('aside').append(legend);
+const boardBadges=[];
 function strip(name,values,x,z,vertical=false,dx=0,dz=0){
   const line=document.createElement('div');line.style.marginBottom='7px';
   line.innerHTML='<b>'+name+'</b><br>'+values.join(' · ');legend.append(line);
@@ -73,6 +74,7 @@ function strip(name,values,x,z,vertical=false,dx=0,dz=0){
     const texture=new T.CanvasTexture(c);texture.colorSpace=T.SRGBColorSpace;
     const badge=new T.Sprite(new T.SpriteMaterial({map:texture,depthTest:true}));
     badge.position.set(x+(vertical?0:i*2.54)+dx,5.5,z+(vertical?i*2.54:0)+dz);badge.scale.set(2.47,1.65,1);badge.userData.pinLabel=true;badge.visible=document.getElementById("labels").checked;scene.add(badge);
+    boardBadges.push({badge,value,x:badge.position.x-dx,z:badge.position.z-dz});
   });
 }
 strip('DIGITAL 상단 왼쪽',['SCL','SDA','V','G',...digital.slice(0,6)],-15,-25,false,0,-1.7);
@@ -104,6 +106,22 @@ const inMission=new URLSearchParams(location.search).get('mode')==='observatory'
 const palette=inMission?null:installPalette({scene,cam,canvas,onPartsChange:refresh});
 const freePositions={...boardContacts};
 for(const [gpio,x] of Object.entries(loc))freePositions['GPIO'+gpio]=[x,4.6,-19];
+// Keep each physical socket distinct even when multiple headers share the same rail.
+const socketNames=new Map(Object.keys(freePositions).map(key=>[key,key]));
+const badgeSockets=[];
+for(const [index,{badge,value,x,z}] of boardBadges.entries()){
+  let key=Object.keys(freePositions).find(k=>{
+    const [px,,pz]=freePositions[k];
+    return Math.abs(x-px)<.01 && Math.abs(z-pz)<.01;
+  });
+  if(!key && !inMission){
+    const name=typeof value==='number'?'GPIO'+value:({'G':'GND','3V3':'3V3','8/SDA':'GPIO8','9/SCL':'GPIO9'})[value];
+    if(!name)continue;
+    key=socketNames.has(name)?name+'@'+index:name;
+    freePositions[key]=[x,4.8,z];socketNames.set(key,name);
+  }
+  if(key)badgeSockets.push({badge,key});
+}
 const freeBoard=inMission?[]:createBoardContacts(scene,freePositions);
 const freeTargets=[];
 const partWires=new Map();
@@ -112,7 +130,7 @@ let pending='';
 const directHint=document.createElement('p');directHint.setAttribute('role','status');$('levelShift').after(directHint);
 const pinButtons=document.createElement('details');
 pinButtons.innerHTML='<summary>접점 버튼으로 연결</summary>';
-for(const [prefix,names] of [['S',['DATA','VCC','GND']],['B',Object.keys(freePositions)]]){
+for(const [prefix,names] of [['S',['DATA','VCC','GND']],['B',[...new Set(socketNames.values())]]]){
   const row=document.createElement('p');row.append(prefix==='S'?'DHT11 ':'KS5034 ');
   for(const name of names){
     const button=document.createElement('button');button.textContent=name==='DATA'?'DAT':name;
@@ -132,7 +150,8 @@ function directPin(id,start){
     partWires.set(sensor,board.slice(2));
     pending='';refresh();
   }
-  directHint.textContent=pending?'● 선택됨 · '+pending.slice(2)+' — 반대쪽 접점을 누르세요.':'부품의 핀 또는 핀 이름표를 보드 접점까지 끌어 놓으세요.';
+  const pendingName=socketNames.get(pending.slice(2))??partPins.find(o=>o.userData.id===pending)?.userData.pin.label;
+  directHint.textContent=pending?'● 선택됨 · '+pendingName+' — 반대쪽 접점을 누르세요.':'부품의 핀 또는 핀 이름표를 보드 접점까지 끌어 놓으세요.';
 }
 const list=document.createElement('div');
 list.id='connections';
@@ -159,7 +178,8 @@ function refresh(){
   for(const socket of partPins){
     const {id,component,componentName,pin}=socket.userData;
     const sonar=component==='hc-sr04',dht=component==='dht11';
-    const end=partWires.get(id);
+    const socketKey=partWires.get(id);
+    const end=socketNames.get(socketKey);
     if(!sonar&&!dht)studyPins++;
     total++;
     if(!end&&!sonar&&!dht)continue;
@@ -168,7 +188,7 @@ function refresh(){
     if(!end){messages.push(componentName+' '+pin.label+' 미연결');continue}
     connected++;
     const color=pin.role==='g'?black:pin.role==='v'?red:0x1d9876;
-    wire(terminalPoint(socket),new T.Vector3(...freePositions[end]),color,label,dht);
+    wire(terminalPoint(socket),new T.Vector3(...freePositions[socketKey]),color,label,dht);
     const remove=document.createElement('button');remove.textContent='삭제';
     remove.onclick=()=>{partWires.delete(id);refresh()};row.append(remove);
     if(!sonar&&!dht){studyLeads++;continue}
@@ -189,4 +209,8 @@ refresh();
 $('clearWires').onclick=()=>{pending='';directHint.textContent='';partWires.clear();refresh()};
 const missionTargets=new URLSearchParams(location.search).get('mode')==='observatory'
   ? mountMission({T,scene,wire,wiring,cam,orbit}) : null;
-setupViewer({T,scene,wiring,cam,orbit,renderer,canvas,categories,hits,missionTargets,freeTargets,onFreePin:directPin});
+for(const {badge,key} of badgeSockets){
+  const socket=(missionTargets??freeBoard).find(o=>o.userData.id==='B:'+key);
+  if(socket)Object.assign(badge.userData,{id:socket.userData.id,contact:socket});
+}
+setupViewer({T,scene,wiring,cam,orbit,renderer,canvas,categories,missionTargets,freeTargets,onFreePin:directPin});

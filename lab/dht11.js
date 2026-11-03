@@ -60,8 +60,9 @@ export const boardContacts={
 };
 export function createBoardContacts(scene,positions){
   return Object.entries(positions).map(([key,pos])=>{
-    const color=key==='GND'?0x99aebc:key.endsWith('V')||key==='3V3'?0xef736d:0xffcc68;
+    const [name]=key.split('@');
+    const color=name==='GND'?0x99aebc:name.endsWith('V')||name==='3V3'?0xef736d:0xffcc68;
     const pin=new T.Mesh(new T.SphereGeometry(.82,10,8),new T.MeshBasicMaterial({color}));
-    pin.position.set(...pos);pin.userData.id='B:'+key;scene.add(pin);return pin;
+    pin.position.set(...pos);pin.userData.id='B:'+key;pin.userData.label=name;scene.add(pin);return pin;
   });
 }

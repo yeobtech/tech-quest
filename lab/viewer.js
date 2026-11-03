@@ -1,5 +1,5 @@
 // Shared camera and picking for the standalone lab and the embedded mission.
-export function setupViewer({T,scene,wiring,cam,orbit,renderer,canvas,categories,hits,missionTargets,freeTargets=[],onFreePin}) {
+export function setupViewer({T,scene,wiring,cam,orbit,renderer,canvas,categories,missionTargets,freeTargets=[],onFreePin}) {
   const el=id=>document.getElementById(id);
   const post=data=>{if(missionTargets)parent.postMessage(data,location.origin)};
   const markers=[0x1676ae,0xca5907].map(color=>{
@@ -69,7 +69,8 @@ export function setupViewer({T,scene,wiring,cam,orbit,renderer,canvas,categories
       const p=o.userData.pin;
       select([o],{name:o.userData.componentName+' · '+p.label,gpio:'—',volts:'부품 단자',use:p.detail});return;
     }
-    const [side,key]=o.userData.id.split(':');
+    const [side,id]=o.userData.id.split(':');
+    const key=o.userData.label??id;
     select([o],{name:(side==='S'?'DHT11 · ':'KS5034 · ')+(key==='DATA'?'DAT':key),
       gpio:key.startsWith('GPIO')?key.slice(4):'—',volts:key==='GND'?'0 V':key==='5V'?'5 V':'3.3 V 실습',
       use:key==='GND'?'공통 접지':key==='DATA'||key.startsWith('GPIO')?'디지털 신호 접점':'전원 접점'})}
@@ -83,22 +84,26 @@ export function setupViewer({T,scene,wiring,cam,orbit,renderer,canvas,categories
     const r=canvas.getBoundingClientRect(),x=event.clientX-r.left,y=event.clientY-r.top;
     ray.setFromCamera(new T.Vector2(2*x/r.width-1,1-2*y/r.height),cam);
     const solid=ray.intersectObjects(scene.children.filter(o=>o.visible),true).find(h=>{
+      const socket=h.object.userData.contact;
+      if(h.object.isSprite && socket?.visible)return true;
       if(!h.object.isMesh||h.object.material.transparent)return false;
       for(let parent=h.object;parent;parent=parent.parent)if(!parent.visible)return false;
       return true;
     });
-    if(solid?.object.userData.contact)return solid.object;
+    if(solid?.object.isSprite)return solid.object.userData.contact;
+    if(solid?.object.userData.id)return solid.object;
     // Resolve a slightly enlarged screen-space footprint by closest projected centre.
     // Occluded pins on the reverse side must not take precedence over the PCB.
     let nearest=null,best=Infinity;
-    const candidates=missionTargets??[...freeTargets.filter(o=>o.visible && o.parent.visible),...hits.filter(o=>o.geometry.parameters.width<=2.54)];
+    const candidates=missionTargets??freeTargets.filter(o=>o.visible && o.parent.visible);
     for(const mesh of candidates){
       const world=mesh.getWorldPosition(new T.Vector3()),depth=world.clone().applyMatrix4(cam.matrixWorldInverse).z;
       if(depth>=0||(solid&&cam.position.distanceTo(world)>solid.distance+2.2))continue;
       const pt=world.clone().project(cam);
       const distance=Math.hypot((pt.x+1)*r.width/2-x,(1-pt.y)*r.height/2-y);
       const pixelsPerUnit=r.height/(-2*depth*Math.tan(cam.fov*Math.PI/360));
-      if(distance<=1.24*pixelsPerUnit+2&&distance<best){nearest=mesh;best=distance}
+      const radius=Math.max(event.pointerType==='touch'?12:8,1.24*pixelsPerUnit+2);
+      if(distance<=radius&&distance<best){nearest=mesh;best=distance}
     }
     if(nearest)return nearest;
     if(solid?.object.userData.cable)return solid.object;
@@ -124,6 +129,7 @@ export function setupViewer({T,scene,wiring,cam,orbit,renderer,canvas,categories
   let down=null;
   const help=document.querySelector('.hint');
   const instructions='접점에서 접점으로 끌어 연결 · 빈 곳을 끌어 회전';
+  const pinName=mesh=>mesh.userData.pin?.label??mesh.userData.label??mesh.userData.id.slice(2);
   help.textContent=instructions;
   const ns='http://www.w3.org/2000/svg';
   const overlay=document.createElementNS(ns,'svg'), cord=document.createElementNS(ns,'path'), tip=document.createElementNS(ns,'circle');
@@ -169,7 +175,7 @@ export function setupViewer({T,scene,wiring,cam,orbit,renderer,canvas,categories
       cord.setAttribute('d',`M ${a.x} ${a.y} Q ${(a.x+b.x)/2} ${(a.y+b.y)/2-lift} ${b.x} ${b.y}`);
       tip.setAttribute('cx',b.x);tip.setAttribute('cy',b.y);tip.setAttribute('r',hit?7:4);
       overlay.classList.add('active');overlay.classList.toggle('snap',!!hit);mark(markers[0],hit?[hit]:null);
-      help.textContent=hit?'● '+hit.userData.id.slice(2)+' · 놓으면 연결됩니다.':'반대쪽 접점에 놓으세요 · 빈 곳에 놓으면 취소';
+      help.textContent=pinName(gesture.pin)+' → '+(hit?pinName(hit)+' · 놓으면 연결됩니다.':'반대쪽 접점이나 핀 이름표에 놓으세요.');
       canvas.style.cursor=hit?'copy':'crosshair';return;
     }
     if(e.buttons)return;
@@ -185,7 +191,7 @@ export function setupViewer({T,scene,wiring,cam,orbit,renderer,canvas,categories
         selectPin(hit);
         const id=hit.userData.id,start=dragging?pin.userData.id:undefined;
         if(missionTargets)post({type:'ks5034:pin',id,start});else onFreePin(id,start);
-        if(dragging)help.textContent='✓ '+start.slice(2)+' ↔ '+id.slice(2)+' 연결';
+        if(dragging)help.textContent='✓ '+pinName(pin)+' ↔ '+pinName(hit)+' 연결';
       }
       return;
     }
