@@ -42,7 +42,7 @@ export function setupViewer({T,scene,cam,orbit,renderer,canvas,categories,hits,m
     if(categories.includes(part))el('parts').selectedIndex=categories.indexOf(part);
   }
   el('labels').onchange=()=>scene.traverse(o=>{if(o.userData.pinLabel)o.visible=el('labels').checked});
-  el('home').onclick=()=>{el('labels').checked=false;el('labels').onchange();initial()};
+  el('home').onclick=()=>{el('labels').checked=el('labels').defaultChecked;el('labels').onchange();initial()};
   el('focus').onclick=()=>{
     if(!selected)return;
     const box=boxFor(selected),center=box.getCenter(new T.Vector3());

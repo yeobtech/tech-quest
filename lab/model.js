@@ -70,7 +70,7 @@ function strip(name,values,x,z,vertical=false,dx=0,dz=0){
     g.fillStyle='#12251f';g.fillRect(0,0,128,80);g.fillStyle='#ffea91';g.textAlign='center';g.textBaseline='middle';g.font='bold 62px sans-serif';g.fillText(value,64,41,122);
     const texture=new T.CanvasTexture(c);texture.colorSpace=T.SRGBColorSpace;
     const badge=new T.Sprite(new T.SpriteMaterial({map:texture,depthTest:true}));
-    badge.position.set(x+(vertical?0:i*2.54)+dx,5.5,z+(vertical?i*2.54:0)+dz);badge.scale.set(2.47,1.65,1);badge.userData.pinLabel=true;badge.visible=false;scene.add(badge);
+    badge.position.set(x+(vertical?0:i*2.54)+dx,5.5,z+(vertical?i*2.54:0)+dz);badge.scale.set(2.47,1.65,1);badge.userData.pinLabel=true;badge.visible=document.getElementById("labels").checked;scene.add(badge);
   });
 }
 strip('DIGITAL 상단 왼쪽',['SCL','SDA','V','G',...digital.slice(0,6)],-15,-25,false,0,-1.7);
