@@ -1,3 +1,4 @@
+import {installPalette} from './components/palette.js';
 import {createDht11,createBoardContacts,boardContacts,terminalPoint} from './dht11.js';
 import { setupViewer } from './viewer.js';
 import * as T from 'three';
@@ -101,9 +102,11 @@ function wire(start,end,color,label,sideExit=false){
   mesh.userData.cable={label,points:curve.getPoints(32)};
   wiring.add(mesh);
 }
-function sensor(x,name){const b=block(x,-35,15,6,4,name==='DHT11'?0x258cc5:0x25735e);scene.remove(b);wiring.add(b);label(name,x,-35,13,4.1);const l=scene.children.at(-1);scene.remove(l);wiring.add(l);return new T.Vector3(x,4,-34)}
 current=null;
 const inMission=new URLSearchParams(location.search).get('mode')==='observatory';
+const palette=inMission?null:installPalette({scene,cam,canvas,onSonarChange(enabled){
+  $('hc').checked=enabled;refresh();
+}});
 const freeSensor=inMission?null:createDht11(-16,-39);
 const freePositions={...boardContacts};
 for(const [gpio,x] of Object.entries(loc))freePositions['GPIO'+gpio]=[x,4.6,-19];
@@ -179,18 +182,18 @@ function refresh(){
     button.onclick=()=>{if(attached)disconnected.add(id);else disconnected.delete(id);refresh()};
     row.append(button);list.append(row);
   }
-  for(const [id,x,name,voltage] of [['hc',16,'HC-SR04','5 V']]){
+  for(const [id,name,voltage] of [['hc','HC-SR04','5 V']]){
     if(!$(id).checked)continue;
-    const start=sensor(x,name);
+    const start=palette?.sonarPin('VCC');if(!start)continue;
     connection(id+'V',name+' VCC → '+voltage,()=>wire(start,new T.Vector3(-6+(id==='dht'?3:4)*2.54,4.2,24),red,name+' VCC → KS5034 '+voltage));
-    connection(id+'G',name+' GND → GND',()=>wire(start.clone().add(new T.Vector3(2,0,0)),new T.Vector3(-6+5*2.54,4.2,24),black,name+' GND → KS5034 GND'));
+    connection(id+'G',name+' GND → GND',()=>wire(palette.sonarPin('GND'),new T.Vector3(-6+5*2.54,4.2,24),black,name+' GND → KS5034 GND'));
     for(const [key,title] of id==='dht'?roles.slice(0,1):roles.slice(1)){
       const pin=+$(key).value;
       connection(key,name+' '+title+' → GPIO '+pin,()=>{
         if(used.has(pin))messages.push('GPIO '+pin+' 충돌 · '+used.get(pin)+' / '+title+'에 서로 다른 핀을 지정하세요.');
         used.set(pin,title);
         if(reserved[pin])messages.push('GPIO '+pin+' · '+reserved[pin]+' 점유. 다른 핀을 선택하세요.');
-        else wire(start,new T.Vector3(loc[pin],4.6,-19),key==='echo'?0x9457bb:0x1d9876,name+' '+title+' → KS5034 GPIO'+pin);
+        else wire(palette.sonarPin(key==='echo'?'Echo':'Trig'),new T.Vector3(loc[pin],4.6,-19),key==='echo'?0x9457bb:0x1d9876,name+' '+title+' → KS5034 GPIO'+pin);
       });
     }
   }
@@ -200,6 +203,7 @@ function refresh(){
   $('status').textContent=messages.length?'⚠ '+messages.join('\n'):total?'✓ 가상 배선 검사 통과':'센서를 켜고 신호선을 선택하세요.';
 }
 $('inputs').onchange=event=>{
+  if(event.target.id==='hc')palette?.setSonar($('hc').checked);
   if(event.target.id==='data'){if($('data').value)dhtWires.DATA='GPIO'+$('data').value;else delete dhtWires.DATA}
   if(event.target.id==='dht'){pending='';directHint.textContent=$('dht').checked?'DHT11 핀을 보드 접점까지 끌어 놓거나, 두 접점을 차례로 누르세요.':''}
   refresh();
@@ -208,6 +212,7 @@ $('inputs').onchange=event=>{
 refresh();
 $('clearWires').onclick=()=>{
   pending='';directHint.textContent='';for(const key of Object.keys(dhtWires))delete dhtWires[key];
+  palette?.setSonar(false);
   disconnected.clear();for(const id of ['dht','hc','shift'])$(id).checked=false;
   for(const [id,,initial] of roles)$(id).value=initial;
   refresh();
