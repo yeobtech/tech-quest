@@ -52,6 +52,12 @@ export function addPinLabels(group,id){
   const map=new T.CanvasTexture(canvas);map.colorSpace=T.SRGBColorSpace;
   const tag=new T.Mesh(new T.PlaneGeometry(unit*1.17,unit*.5),new T.MeshBasicMaterial({map,side:T.DoubleSide}));
   tag.position.copy(end);tag.rotation.x=-Math.PI*.40;tag.name=p.label;tag.userData={role:names[p.role],description:p.detail};
-  marks.add(line,dot,tag);
+  group.add(dot); // The physical contact remains pickable with the label overlay hidden.
+  if(p.role!=='n'){
+    const address='S:'+id+'/'+i;
+    dot.userData={id:address,pin:p,component:id};
+    tag.userData={...dot.userData,contact:dot};
+  }
+  marks.add(line,tag);
  });
 }

@@ -91,8 +91,8 @@ const select=$('parts');
 categories.forEach((part,index)=>select.add(new Option(part.name,index)));
 const reserved={1:'INA180',19:'USB OTG',20:'USB OTG',35:'MicroSD',36:'MicroSD',37:'MicroSD',39:'MicroSD',45:'RGB LED'};
 const roles=[['data','DATA',13],['trig','TRIG',12],['echo','ECHO',11]];
-function field(id,label,initial){const choices=[...Object.keys(loc),...Object.keys(reserved)];return '<label>'+label+' <select id="'+id+'">'+choices.map(n=>'<option value="'+n+'" '+(+n===initial?'selected':'')+'>GPIO '+n+(reserved[n]?' · '+reserved[n]:'')+'</option>').join('')+'</select></label>'}
-$('inputs').innerHTML='<fieldset><legend><label><input id="dht" type="checkbox"> DHT11</label></legend>'+field(...roles[0]).replace('<select id="data">','<select id="data"><option value="">접점 선택</option><option value="4">GPIO 4</option>')+'VCC → 3.3 V · GND → GND</fieldset><fieldset><legend><label><input id="hc" type="checkbox"> HC-SR04</label></legend>'+field(...roles[1])+field(...roles[2])+'VCC → 5 V · GND → GND<label><input id="shift" type="checkbox"> ECHO에 5→3.3 V 레벨 변환</label></fieldset>';
+function field(id,label,initial){const choices=['4',...Object.keys(loc),...Object.keys(reserved)];return '<label>'+label+' <select id="'+id+'">'+choices.map(n=>'<option value="'+n+'" '+(+n===initial?'selected':'')+'>GPIO '+n+(reserved[n]?' · '+reserved[n]:'')+'</option>').join('')+'</select></label>'}
+$('inputs').innerHTML='<fieldset><legend><label><input id="dht" type="checkbox"> DHT11</label></legend>'+field(...roles[0]).replace('<select id="data">','<select id="data"><option value="">접점 선택</option>')+'VCC → 3.3 V · GND → GND</fieldset><fieldset><legend><label><input id="hc" type="checkbox"> HC-SR04</label></legend>'+field(...roles[1])+field(...roles[2])+'VCC → 5 V · GND → GND<label><input id="shift" type="checkbox"> ECHO에 5→3.3 V 레벨 변환</label></fieldset>';
 const wiring=new T.Group();scene.add(wiring);
 function wire(start,end,color,label,sideExit=false){
   const mid=start.clone().lerp(end,.5);mid.y=11;
@@ -104,7 +104,7 @@ function wire(start,end,color,label,sideExit=false){
 }
 current=null;
 const inMission=new URLSearchParams(location.search).get('mode')==='observatory';
-const palette=inMission?null:installPalette({scene,cam,canvas,onSonarChange(enabled){
+const palette=inMission?null:installPalette({scene,cam,canvas,onPartsChange:refresh,onSonarChange(enabled){
   $('hc').checked=enabled;refresh();
 }});
 const freeSensor=inMission?null:createDht11(-16,-39);
@@ -114,6 +114,8 @@ const freeBoard=inMission?[]:createBoardContacts(scene,freePositions);
 const freeTargets=freeSensor?[...Object.values(freeSensor.contacts),...freeBoard]:[];
 if(freeSensor)scene.add(freeSensor.group);
 const dhtWires={};
+const partWires=new Map();
+let partPins=[];
 let pending='';
 const directHint=document.createElement('p');directHint.setAttribute('role','status');$('inputs').after(directHint);
 const pinButtons=document.createElement('details');
@@ -133,11 +135,21 @@ function directPin(id,start){
   else {
     const board=id.startsWith('B:')?id:pending;
     const sensor=id.startsWith('S:')?id:pending;
-    dhtWires[sensor.slice(2)]=board.slice(2);
+    if(sensor.includes('/')){
+      const socket=partPins.find(o=>o.userData.id===sensor);
+      if(!socket){pending='';return}
+      const end=board.slice(2);
+      partWires.set(sensor,end);
+      if(socket.userData.component==='hc-sr04'){
+        const key=socket.userData.pin.label.toLowerCase();
+        disconnected.delete(key==='vcc'?'hcV':key==='gnd'?'hcG':key);
+        if(['trig','echo'].includes(key)&&end.startsWith('GPIO'))$(key).value=end.slice(4);
+      }
+    }else dhtWires[sensor.slice(2)]=board.slice(2);
     if(sensor==='S:DATA' && board.startsWith('B:GPIO'))$('data').value=board.slice(6);
     pending='';refresh();
   }
-  directHint.textContent=pending?'● 선택됨 · '+pending.slice(2)+' — 반대쪽 접점을 누르세요.':'DHT11 핀을 보드 접점까지 끌어 놓거나, 두 접점을 차례로 누르세요.';
+  directHint.textContent=pending?'● 선택됨 · '+pending.slice(2)+' — 반대쪽 접점을 누르세요.':'부품의 핀 또는 핀 이름표를 보드 접점까지 끌어 놓으세요.';
 }
 const disconnected=new Set();
 const list=document.createElement('div');
@@ -153,7 +165,13 @@ function refresh(){
   if(freeSensor)$('data').value=(dhtWires.DATA??'').replace('GPIO','');
   pinButtons.hidden=!freeSensor||!$('dht').checked;
   if(freeSensor)freeSensor.group.visible=$('dht').checked;
-  freeBoard.forEach(pin=>{pin.visible=$('dht').checked});
+  const contacts=palette?.contacts()??[];
+  partPins=contacts.filter(o=>!o.userData.contact);
+  freeTargets.splice(0,freeTargets.length,...Object.values(freeSensor?.contacts??{}),...freeBoard,...contacts);
+  const live=new Set(partPins.map(o=>o.userData.id));
+  for(const address of partWires.keys())if(!live.has(address))partWires.delete(address);
+  if(pending.includes('/')&&!live.has(pending))pending='';
+  freeBoard.forEach(pin=>{pin.visible=$('dht').checked||partPins.length>0});
   if(freeSensor && $('dht').checked){
     for(const [key,socket] of Object.entries(freeSensor.contacts)){
       total++;
@@ -182,37 +200,52 @@ function refresh(){
     button.onclick=()=>{if(attached)disconnected.add(id);else disconnected.delete(id);refresh()};
     row.append(button);list.append(row);
   }
-  for(const [id,name,voltage] of [['hc','HC-SR04','5 V']]){
-    if(!$(id).checked)continue;
-    const start=palette?.sonarPin('VCC');if(!start)continue;
-    connection(id+'V',name+' VCC → '+voltage,()=>wire(start,new T.Vector3(-6+(id==='dht'?3:4)*2.54,4.2,24),red,name+' VCC → KS5034 '+voltage));
-    connection(id+'G',name+' GND → GND',()=>wire(palette.sonarPin('GND'),new T.Vector3(-6+5*2.54,4.2,24),black,name+' GND → KS5034 GND'));
-    for(const [key,title] of id==='dht'?roles.slice(0,1):roles.slice(1)){
-      const pin=+$(key).value;
-      connection(key,name+' '+title+' → GPIO '+pin,()=>{
-        if(used.has(pin))messages.push('GPIO '+pin+' 충돌 · '+used.get(pin)+' / '+title+'에 서로 다른 핀을 지정하세요.');
-        used.set(pin,title);
-        if(reserved[pin])messages.push('GPIO '+pin+' · '+reserved[pin]+' 점유. 다른 핀을 선택하세요.');
-        else wire(palette.sonarPin(key==='echo'?'Echo':'Trig'),new T.Vector3(loc[pin],4.6,-19),key==='echo'?0x9457bb:0x1d9876,name+' '+title+' → KS5034 GPIO'+pin);
+  let studyLeads=0;
+  for(const socket of partPins){
+    const {id,component,componentName,pin}=socket.userData;
+    const sonar=component==='hc-sr04',key=pin.label.toLowerCase();
+    const field=key==='vcc'?'hcV':key==='gnd'?'hcG':key;
+    let end=partWires.get(id);
+    if(sonar && end===undefined)end=key==='vcc'?'5V':key==='gnd'?'GND':'GPIO'+$(key).value;
+    if(!end)continue;
+    const label=componentName+' '+pin.label+' → KS5034 '+end;
+    function draw(){
+      if(freePositions[end])wire(terminalPoint(socket),new T.Vector3(...freePositions[end]),pin.role==='g'?black:pin.role==='v'?red:0x1d9876,label);
+    }
+    if(sonar){
+      connection(field,label,()=>{
+        if(key==='trig'||key==='echo'){
+          const gpio=Number(end.slice(4));
+          if(!end.startsWith('GPIO'))messages.push(pin.label+'에는 GPIO를 선택하세요.');
+          else if(reserved[gpio]||used.has(gpio))messages.push(end+' 충돌 · 다른 GPIO를 선택하세요.');
+          used.set(gpio,pin.label);
+        }else if(end!==(key==='vcc'?'5V':'GND'))messages.push(pin.label+' 전원 배선을 확인하세요.');
+        draw();
       });
+    }else{
+      studyLeads++;connected++;total++;draw();
+      const row=document.createElement('div'),remove=document.createElement('button');
+      row.append(label+' ');remove.textContent='삭제';remove.onclick=()=>{partWires.delete(id);refresh()};
+      row.append(remove);list.append(row);
     }
   }
   if($('hc').checked&&!$('shift').checked)messages.push('5 V ECHO 직결 위험 · ESP32 입력 전에 3.3 V로 변환하세요.');
   const heading=document.createElement('h2');heading.textContent='연결 목록 · '+connected+' / '+total;list.prepend(heading);
   $('status').className=messages.length?'bad':'';
-  $('status').textContent=messages.length?'⚠ '+messages.join('\n'):total?'✓ 가상 배선 검사 통과':'센서를 켜고 신호선을 선택하세요.';
+  $('status').textContent=messages.length?'⚠ '+messages.join('\n'):studyLeads?'부품 연결선 표시 · 일반 소자의 전기적 동작은 검증되지 않습니다.':total?'✓ 가상 배선 검사 통과':'센서를 켜고 신호선을 선택하세요.';
 }
 $('inputs').onchange=event=>{
+  if(['trig','echo'].includes(event.target.id)){const pin=partPins.find(o=>o.userData.component==='hc-sr04'&&o.userData.pin.label.toLowerCase()===event.target.id);if(pin)partWires.delete(pin.userData.id)}
   if(event.target.id==='hc')palette?.setSonar($('hc').checked);
   if(event.target.id==='data'){if($('data').value)dhtWires.DATA='GPIO'+$('data').value;else delete dhtWires.DATA}
-  if(event.target.id==='dht'){pending='';directHint.textContent=$('dht').checked?'DHT11 핀을 보드 접점까지 끌어 놓거나, 두 접점을 차례로 누르세요.':''}
+  if(event.target.id==='dht'){pending='';directHint.textContent=$('dht').checked?'부품의 핀 또는 핀 이름표를 보드 접점까지 끌어 놓으세요.':''}
   refresh();
   if(['hc','dht'].includes(event.target.id))$('all').click();
 };
 refresh();
 $('clearWires').onclick=()=>{
   pending='';directHint.textContent='';for(const key of Object.keys(dhtWires))delete dhtWires[key];
-  palette?.setSonar(false);
+  partWires.clear();palette?.setSonar(false);
   disconnected.clear();for(const id of ['dht','hc','shift'])$(id).checked=false;
   for(const [id,,initial] of roles)$(id).value=initial;
   refresh();

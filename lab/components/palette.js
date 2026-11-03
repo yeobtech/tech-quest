@@ -3,7 +3,7 @@ import {catalog,createPart} from './parts.js';
 import {pins} from './pins.js';
 
 // The catalogue uses metres; the board scene uses millimetres.
-export function installPalette({scene,cam,canvas,onSonarChange}){
+export function installPalette({scene,cam,canvas,onSonarChange,onPartsChange}){
   const placed=new Map(),cards=new Map();
   const panel=document.createElement('section');
   panel.className='part-palette';
@@ -34,7 +34,7 @@ export function installPalette({scene,cam,canvas,onSonarChange}){
     item.model.traverse(o=>{o.geometry?.dispose();if(o.material)materials.add(o.material)});
     for(const mat of materials){mat.map?.dispose();mat.dispose()}
     if(id==='hc-sr04')onSonarChange(false);
-    renderList();status.textContent=item.name+' 제거됨';
+    onPartsChange();renderList();status.textContent=item.name+' 제거됨';
   }
   function place(id,point){
     let item=placed.get(id);
@@ -50,7 +50,7 @@ export function installPalette({scene,cam,canvas,onSonarChange}){
     item.model.position.copy(point);item.model.position.y+=item.base;
     item.model.updateMatrixWorld(true);
     if(id==='hc-sr04')onSonarChange(true);
-    renderList();arm(null);status.textContent=item.name+' 배치됨 · 카드를 다시 끌면 위치를 옮깁니다.';
+    onPartsChange();renderList();arm(null);status.textContent=item.name+' 배치됨 · 카드를 다시 끌면 위치를 옮깁니다.';
   }
   function drop(x,y){
     const rect=canvas.getBoundingClientRect();
@@ -106,6 +106,13 @@ export function installPalette({scene,cam,canvas,onSonarChange}){
     }
   });
   return {
+    contacts(){
+      const targets=[];
+      for(const {model,name} of placed.values())model.traverse(o=>{
+        if(o.userData.pin){o.userData.componentName=name;targets.push(o)}
+      });
+      return targets;
+    },
     setSonar(enabled){
       if(!enabled){takeOff('hc-sr04');return}
       if(!placed.has('hc-sr04'))place('hc-sr04',new T.Vector3(16,0,-35));

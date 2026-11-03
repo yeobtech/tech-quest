@@ -64,7 +64,12 @@ export function setupViewer({T,scene,wiring,cam,orbit,renderer,canvas,categories
   el('parts').onchange=()=>{const part=categories[el('parts').selectedIndex];if(part.name.includes('뒷면'))el('back').click();selectPart(part)};
   el('usbGuide').onclick=()=>{front();selectPart(categories.find(p=>p.name==='USB PROG'))};
   const pinById=new Map((missionTargets??[]).map(o=>[o.userData.id,o]));
-  function selectPin(o){const [side,key]=o.userData.id.split(':');
+  function selectPin(o){
+    if(o.userData.pin){
+      const p=o.userData.pin;
+      select([o],{name:o.userData.componentName+' · '+p.label,gpio:'—',volts:'부품 단자',use:p.detail});return;
+    }
+    const [side,key]=o.userData.id.split(':');
     select([o],{name:(side==='S'?'DHT11 · ':'KS5034 · ')+(key==='DATA'?'DAT':key),
       gpio:key.startsWith('GPIO')?key.slice(4):'—',volts:key==='GND'?'0 V':key==='5V'?'5 V':'3.3 V 실습',
       use:key==='GND'?'공통 접지':key==='DATA'||key.startsWith('GPIO')?'디지털 신호 접점':'전원 접점'})}
@@ -77,7 +82,12 @@ export function setupViewer({T,scene,wiring,cam,orbit,renderer,canvas,categories
   function pick(event){
     const r=canvas.getBoundingClientRect(),x=event.clientX-r.left,y=event.clientY-r.top;
     ray.setFromCamera(new T.Vector2(2*x/r.width-1,1-2*y/r.height),cam);
-    const solid=ray.intersectObjects(scene.children.filter(o=>o.visible),true).find(h=>h.object.isMesh&&!h.object.material.transparent);
+    const solid=ray.intersectObjects(scene.children.filter(o=>o.visible),true).find(h=>{
+      if(!h.object.isMesh||h.object.material.transparent)return false;
+      for(let parent=h.object;parent;parent=parent.parent)if(!parent.visible)return false;
+      return true;
+    });
+    if(solid?.object.userData.contact)return solid.object;
     // Resolve a slightly enlarged screen-space footprint by closest projected centre.
     // Occluded pins on the reverse side must not take precedence over the PCB.
     let nearest=null,best=Infinity;
@@ -121,7 +131,8 @@ export function setupViewer({T,scene,wiring,cam,orbit,renderer,canvas,categories
   let gesture=null;
   function screenPoint(mesh){
     const rect=canvas.getBoundingClientRect();
-    const v=mesh.localToWorld(mesh.userData.anchor?.clone()??new T.Vector3()).project(cam);
+    const socket=mesh.userData.contact??mesh;
+    const v=socket.localToWorld(socket.userData.anchor?.clone()??new T.Vector3()).project(cam);
     return {x:rect.left+(v.x+1)*rect.width/2,y:rect.top+(1-v.y)*rect.height/2};
   }
   function targetFor(e){
