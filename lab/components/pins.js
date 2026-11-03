@@ -44,8 +44,6 @@ export function addPinLabels(group,id){
   const end=new T.Vector3((i%row-(row-1)/2)*unit*1.28,p.y+unit*.35,rear?size.min.z-unit*1.1:size.max.z+unit*1.1);
   if(id==='neopixel'){end.x=p.x+(p.x<0?-1:1)*unit*1.15;end.z=(i%3-1)*unit*.76}
   const color=colors[p.role],mat=new T.MeshBasicMaterial({color});
-  const dir=end.clone().sub(at);
-  const line=new T.Mesh(new T.CylinderGeometry(unit*.024,unit*.024,dir.length(),8),mat);line.position.copy(at).lerp(end,.5);line.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),dir.normalize());
   const dot=new T.Mesh(new T.SphereGeometry(unit*.085,12,8),mat);dot.position.copy(at);
   const canvas=document.createElement('canvas');canvas.width=192;canvas.height=80;const ctx=canvas.getContext('2d');
   ctx.fillStyle=color;ctx.fillRect(0,0,192,80);ctx.fillStyle='white';ctx.font='bold 54px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(p.label,96,42,180);
@@ -58,6 +56,6 @@ export function addPinLabels(group,id){
     dot.userData={id:address,pin:p,component:id};
     tag.userData={...dot.userData,contact:dot};
   }
-  marks.add(line,tag);
+  marks.add(tag);
  });
 }

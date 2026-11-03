@@ -155,13 +155,14 @@ function refresh(){
   const hasSonar=partPins.some(p=>p.userData.component==='hc-sr04');
   $('levelShift').hidden=!hasSonar;
   if(!hasSonar)$('shift').checked=false;
-  let studyLeads=0;
+  let studyLeads=0,studyPins=0;
   for(const socket of partPins){
     const {id,component,componentName,pin}=socket.userData;
     const sonar=component==='hc-sr04',dht=component==='dht11';
     const end=partWires.get(id);
-    if(!end&&!sonar&&!dht)continue;
+    if(!sonar&&!dht)studyPins++;
     total++;
+    if(!end&&!sonar&&!dht)continue;
     const label=componentName+' '+pin.label+' → '+(end?'KS5034 '+end:'미연결');
     const row=document.createElement('div');row.textContent=label+' ';list.append(row);
     if(!end){messages.push(componentName+' '+pin.label+' 미연결');continue}
@@ -181,7 +182,7 @@ function refresh(){
   if(hasSonar&&!$('shift').checked)messages.push('5 V ECHO 직결 위험 · ESP32 입력 전에 3.3 V로 변환하세요.');
   const heading=document.createElement('h2');heading.textContent='연결 목록 · '+connected+' / '+total;list.prepend(heading);
   $('status').className=messages.length?'bad':'';
-  $('status').textContent=messages.length?'⚠ '+messages.join('\n'):studyLeads?'부품 연결선 표시 · 일반 소자의 전기적 동작은 검증되지 않습니다.':total?'✓ 가상 배선 검사 통과':'부품을 배치하고 핀을 연결하세요.';
+  $('status').textContent=messages.length?'⚠ '+messages.join('\n'):!connected?(total?'연결된 선이 없습니다. 부품 단자를 보드 접점까지 끌어 놓으세요.':'부품을 배치하고 핀을 연결하세요.'):studyPins?'일반 소자 연결 '+studyLeads+' / '+studyPins+' · 일반 소자의 전기적 동작은 검증되지 않습니다.':'✓ 가상 배선 검사 통과';
 }
 $('shift').onchange=refresh;
 refresh();
