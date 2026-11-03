@@ -1,9 +1,8 @@
 import * as T from 'three';
 import {catalog,createPart} from './parts.js';
-import {pins} from './pins.js';
 
 // The catalogue uses metres; the board scene uses millimetres.
-export function installPalette({scene,cam,canvas,onSonarChange,onPartsChange}){
+export function installPalette({scene,cam,canvas,onPartsChange}){
   const placed=new Map(),cards=new Map();
   const panel=document.createElement('section');
   panel.className='part-palette';
@@ -33,15 +32,14 @@ export function installPalette({scene,cam,canvas,onSonarChange,onPartsChange}){
     const materials=new Set();
     item.model.traverse(o=>{o.geometry?.dispose();if(o.material)materials.add(o.material)});
     for(const mat of materials){mat.map?.dispose();mat.dispose()}
-    if(id==='hc-sr04')onSonarChange(false);
     onPartsChange();renderList();status.textContent=item.name+' 제거됨';
   }
   function place(id,point){
     let item=placed.get(id);
     if(!item){
-      const model=createPart(id);model.scale.setScalar(.55);
+      const model=createPart(id);model.scale.setScalar(id==='dht11'?1:.55);
       const [,name,variant]=catalog.find(entry=>entry[0]===id);
-      item={model,name:id==='dht22'?name+' · '+variant:name};placed.set(id,item);
+      item={model,name:id==='dht11'?name+' · '+variant:name};placed.set(id,item);
       const marks=model.getObjectByName('Terminal labels');marks.userData.pinLabel=true;
       marks.visible=document.getElementById('labels').checked;
       const shape=new T.Box3().setFromObject(model);item.base=-shape.min.y;
@@ -49,7 +47,6 @@ export function installPalette({scene,cam,canvas,onSonarChange,onPartsChange}){
     }
     item.model.position.copy(point);item.model.position.y+=item.base;
     item.model.updateMatrixWorld(true);
-    if(id==='hc-sr04')onSonarChange(true);
     onPartsChange();renderList();arm(null);status.textContent=item.name+' 배치됨 · 카드를 다시 끌면 위치를 옮깁니다.';
   }
   function drop(x,y){
@@ -73,7 +70,7 @@ export function installPalette({scene,cam,canvas,onSonarChange,onPartsChange}){
       const card=document.createElement('button');card.type='button';card.dataset.part=id;card.title=name+' · '+variant;
       card.setAttribute('aria-pressed','false');
       const img=new Image();img.src=new URL('../part-previews/'+id+'.png',document.baseURI).href;img.alt='';img.draggable=false;
-      card.append(img,document.createTextNode(id==='dht22'?'온습도 · DHT22':name));grid.append(card);cards.set(id,card);
+      card.append(img,document.createTextNode(id==='dht11'?'온습도 · DHT11':name));grid.append(card);cards.set(id,card);
       card.onpointerdown=e=>{
         if(e.button!==0||!e.isPrimary)return;
         drag={id,card,pointer:e.pointerId,x:e.clientX,y:e.clientY};
@@ -112,15 +109,6 @@ export function installPalette({scene,cam,canvas,onSonarChange,onPartsChange}){
         if(o.userData.pin){o.userData.componentName=name;targets.push(o)}
       });
       return targets;
-    },
-    setSonar(enabled){
-      if(!enabled){takeOff('hc-sr04');return}
-      if(!placed.has('hc-sr04'))place('hc-sr04',new T.Vector3(16,0,-35));
-    },
-    sonarPin(label){
-      const model=placed.get('hc-sr04')?.model;if(!model)return null;
-      const p=pins['hc-sr04'].find(p=>p.label===label);
-      return model.localToWorld(new T.Vector3(p.x,p.y,p.z));
     }
   };
 }

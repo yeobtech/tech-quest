@@ -5,7 +5,7 @@ const pin=(label,role,detail,x,y,z)=>({label,role,detail,x,y,z});
 const header=(z,labels)=>labels.map(([name,role,detail],i)=>pin(name,role,detail,(i-(labels.length-1)/2)*2.54,6.4,z));
 const v=['VCC','v','전원 +'],g=['GND','g','공통 접지'];
 export const pins={
- dht22:header(16.7,[v,['DATA','s','온습도 데이터'],['NC','n','연결하지 않음'],g]).map(p=>({...p,y:1.6})),
+ dht11:[['DATA','s','온습도 신호'],v,g].map(([label,role,detail],i)=>pin(label,role,detail,14.69,1.82,(i-1)*2.54)),
  'hc-sr04':header(8,[v,['Trig','s','보드 → 센서 · 측정 시작'],['Echo','s','센서 → 보드 · 반사 시간'],g]),
  ldr:[pin('A','c','광저항 한쪽 다리',-2,-1,15),pin('B','c','다른 다리 · 극성 없음',2,-1,15)],
  soil:header(-12,[['E1','c','측정 회로에 연결하는 전극 1'],['E2','c','측정 회로에 연결하는 전극 2']]),

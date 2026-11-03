@@ -1,9 +1,10 @@
+import {createDht11} from '../dht11.js';
 import {addPinLabels} from './pins.js';
 import * as T from 'three';
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
 const metal=0xbac4cc, gold=0xdab26a, black=0x202530, blue=0x174e80, white=0xf1eee3, green=0x176447;
 export const catalog=[
- ['dht22','온습도 센서','DHT22','흰 격자 덮개 속으로 공기가 드나들어요.'],
+ ['dht11','온습도 센서','DHT11','파란 센서와 세 개의 금색 단자를 살펴보세요.'],
  ['hc-sr04','초음파 거리 센서','HC-SR04','두 금속 통 중 하나는 초음파를 보내고 다른 하나는 메아리를 받아요.'],
  ['ldr','조도 센서','원판형 광저항','작은 원판 위에 구불구불한 감광 무늬가 있어요.'],
  ['soil','토양 수분 센서','저항식 포크형 프로브','두 갈래 전극을 흙에 꽂는 형태예요.'],
@@ -20,6 +21,15 @@ export const catalog=[
  ['fan','팬모터','사각 축류팬','사각 틀 안에 굽은 날개와 중심 모터가 있어요.']
 ];
 export function createPart(id){
+ if(id==='dht11'){
+   const {group,contacts}=createDht11(0,0);
+   addPinLabels(group,id);
+   Object.values(contacts).forEach((pin,i)=>{
+     const dot=group.children.find(mesh=>mesh.userData.id==='S:dht11/'+i);
+     pin.userData={...pin.userData,...dot.userData,contact:dot};
+   });
+   return group;
+ }
  const g=new T.Group(); g.name=id;
  const mats=new Map();
  function mesh(geo,color,x,y,z){
@@ -43,13 +53,7 @@ export function createPart(id){
  function header(n,z,y=1.4){box(0,y+1,z,n*2.54,2,2.5,black,.25);for(let i=0;i<n;i++)box((i-(n-1)/2)*2.54,y+1,z,.63,8,.63,gold)}
  function smd(x,z){box(x,2,z,3,1.1,1.55,black);for(const dx of [-1.15,1.15])box(x+dx,2.05,z,.65,1.2,1.6,metal)}
  function wire(colors,from,to){colors.forEach((c,i)=>{const dx=(i-(colors.length-1)/2)*1.3;tube([[from[0]+dx,from[1],from[2]],[from[0]+dx,from[1]-.4,from[2]+4],[to[0]+dx,to[1],to[2]-4],[to[0]+dx,to[1],to[2]]],.57,c)})}
- if(id==='dht22'){
-  box(0,2,0,15,4,20,white,.9); box(0,4.1,-1,13,.7,16,black);
-  for(let i=-3;i<=3;i++)box(i*2,5,-1,.85,1.8,17,white,.18);
-  for(let i=-4;i<=4;i++)box(0,5.05,i*2-1,14.7,1.9,.85,white,.15);
-  for(const x of [-7,7])box(x,4.4,0,1.1,3,19.5,white,.4);
-  box(0,4.6,8,14.6,2.5,4,white,.4);for(let i=0;i<4;i++)box((i-1.5)*2.54,1.6,13.2,.68,.45,7,metal);
- }else if(id==='hc-sr04'){
+ if(id==='hc-sr04'){
   plate(45,20);header(4,8);smd(0,-4);smd(0,1);
   for(const x of [-12.5,12.5]){cyl(x,7.1,-.3,8,11.4,metal);cyl(x,12.87,-.3,6.95,.12,black);
    for(let i=-6;i<=6;i++){const l=2*Math.sqrt(47-i*i);box(x+i,13,-.3,.16,.18,l,metal);box(x,13.05,i-.3,l,.18,.16,metal)}
