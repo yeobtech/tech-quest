@@ -71,7 +71,7 @@ export function setupViewer({T,scene,wiring,cam,orbit,renderer,canvas,categories
     }
     const [side,id]=o.userData.id.split(':');
     const key=o.userData.label??id;
-    select([o],{name:(side==='S'?'DHT11 · ':'KS5034 · ')+(key==='DATA'?'DAT':key),
+    select([o],{name:(side==='S'?'DHT11 · ':'KS5034 · ')+(o.userData.location??(key==='DATA'?'DAT':key)),
       gpio:key.startsWith('GPIO')?key.slice(4):'—',volts:key==='GND'?'0 V':key==='5V'?'5 V':'3.3 V 실습',
       use:key==='GND'?'공통 접지':key==='DATA'||key.startsWith('GPIO')?'디지털 신호 접점':'전원 접점'})}
   window.addEventListener('message',event=>{
@@ -91,6 +91,7 @@ export function setupViewer({T,scene,wiring,cam,orbit,renderer,canvas,categories
       return true;
     });
     if(solid?.object.isSprite)return solid.object.userData.contact;
+    if(solid?.object.userData.boardSocket?.visible)return solid.object.userData.boardSocket;
     if(solid?.object.userData.id)return solid.object;
     // Resolve a slightly enlarged screen-space footprint by closest projected centre.
     // Occluded pins on the reverse side must not take precedence over the PCB.
@@ -129,7 +130,7 @@ export function setupViewer({T,scene,wiring,cam,orbit,renderer,canvas,categories
   let down=null;
   const help=document.querySelector('.hint');
   const instructions='접점에서 접점으로 끌어 연결 · 빈 곳을 끌어 회전';
-  const pinName=mesh=>mesh.userData.pin?.label??mesh.userData.label??mesh.userData.id.slice(2);
+  const pinName=mesh=>mesh.userData.pin?.label??mesh.userData.location??mesh.userData.label??mesh.userData.id.slice(2);
   help.textContent=instructions;
   const ns='http://www.w3.org/2000/svg';
   const overlay=document.createElementNS(ns,'svg'), cord=document.createElementNS(ns,'path'), tip=document.createElementNS(ns,'circle');

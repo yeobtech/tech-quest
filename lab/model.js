@@ -25,11 +25,16 @@ function contact(group, role, color, x, z, gpio, rail) {
 }
 const digital=[12,13,11,10,48,47,42,41,40,38,21];
 part('DIGITAL 상단 암헤더',port,unknown,io,'디지털 점퍼 연결');row(-15,-25,10,yellow,false,true);row(12.5,-25,8,yellow,false,true);
-const loc={};
+const digitalSockets=[];
 digital.forEach((pin,i)=>{
   const x=i<6?-4.7+i*2.54:12.6+(i-6)*2.54;
-  loc[pin]=x;
-  ['S','V','G'].forEach((role,j)=>contact('DIGITAL · IO'+pin,role,[yellow,red,black][j],x,-19+j*2.54,'GPIO '+pin,'V 레일 · 설정 확인'));
+  for(const [j,role] of ['S','V','G'].entries()){
+    const z=-19+j*2.54;
+    const name={S:'GPIO'+pin,V:'5V',G:'GND'}[role];
+    const key=role==='S'?name:name+'@DIGITAL'+pin;
+    contact('DIGITAL · IO'+pin,role,[yellow,red,black][j],x,z,'GPIO '+pin,'5 V');
+    digitalSockets.push({key,name,label:'DIGITAL '+pin+' · '+role+' ('+name+')',position:[x,4.6,z],body:current.objects});
+  }
 });
 for(let i=0;i<3;i++){
   ['SCL','SDA','V','G'].forEach((role,j)=>contact('I2C BUS '+(i+1)+'열',role,[0xe1ded6,yellow,red,black][j],-4.5+i*2.54,-2+j*2.54,unknown,'V 레일 · 설정 확인'));
@@ -105,9 +110,14 @@ current=null;
 const inMission=new URLSearchParams(location.search).get('mode')==='observatory';
 const palette=inMission?null:installPalette({scene,cam,canvas,onPartsChange:refresh});
 const freePositions={...boardContacts};
-for(const [gpio,x] of Object.entries(loc))freePositions['GPIO'+gpio]=[x,4.6,-19];
 // Keep each physical socket distinct even when multiple headers share the same rail.
 const socketNames=new Map(Object.keys(freePositions).map(key=>[key,key]));
+const socketLabels=new Map();
+if(!inMission)for(const socket of digitalSockets){
+  freePositions[socket.key]=socket.position;
+  socketNames.set(socket.key,socket.name);
+  socketLabels.set(socket.key,socket.label);
+}
 const badgeSockets=[];
 for(const [index,{badge,value,x,z}] of boardBadges.entries()){
   let key=Object.keys(freePositions).find(k=>{
@@ -123,6 +133,13 @@ for(const [index,{badge,value,x,z}] of boardBadges.entries()){
   if(key)badgeSockets.push({badge,key});
 }
 const freeBoard=inMission?[]:createBoardContacts(scene,freePositions);
+for(const socket of digitalSockets){
+  const terminal=freeBoard.find(o=>o.userData.id==='B:'+socket.key);
+  if(!terminal)continue;
+  terminal.userData.location=socket.label;
+  if(socket.name==='GND')terminal.material.color.setHex(black);
+  for(const mesh of socket.body)mesh.userData.boardSocket=terminal;
+}
 const freeTargets=[];
 const partWires=new Map();
 let partPins=[];
@@ -183,7 +200,7 @@ function refresh(){
     if(!sonar&&!dht)studyPins++;
     total++;
     if(!end&&!sonar&&!dht)continue;
-    const label=componentName+' '+pin.label+' → '+(end?'KS5034 '+end:'미연결');
+    const label=componentName+' '+pin.label+' → '+(end?'KS5034 '+(socketLabels.get(socketKey)??end):'미연결');
     const row=document.createElement('div');row.textContent=label+' ';list.append(row);
     if(!end){messages.push(componentName+' '+pin.label+' 미연결');continue}
     connected++;
@@ -197,6 +214,8 @@ function refresh(){
       if(!end.startsWith('GPIO'))messages.push(pin.label+'에는 GPIO를 선택하세요.');
       else if(reserved[gpio]||used.has(gpio))messages.push(end+' 충돌 · 다른 GPIO를 선택하세요.');
       used.set(gpio,pin.label);
+    }else if(dht&&pin.role==='v'&&end==='5V'){
+      messages.push('VCC가 5 V에 연결됐습니다. 이 DHT11 실습에서는 DATA의 5 V 풀업을 피하도록 VCC를 3V3에 옮기세요.');
     }else if(end!==(pin.role==='g'?'GND':sonar?'5V':'3V3'))messages.push(label+' 전원 배선을 확인하세요.');
   }
   if(hasSonar&&!$('shift').checked)messages.push('5 V ECHO 직결 위험 · ESP32 입력 전에 3.3 V로 변환하세요.');
