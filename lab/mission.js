@@ -15,7 +15,7 @@ export function mountMission({T,scene,wire,wiring,cam,orbit}) {
     for(const mesh of [...wiring.children]){wiring.remove(mesh);mesh.geometry.dispose();mesh.material.dispose()}
     for(const key of ['VCC','DATA','GND']){
       const end=boardContacts[event.data.wires?.[key]];
-      if(end)wire(terminalPoint(sensor.contacts[key]),new T.Vector3(...end),colors[key],true);
+      if(end)wire(terminalPoint(sensor.contacts[key]),new T.Vector3(...end),colors[key],'DHT11 '+key+' → KS5034 '+event.data.wires[key],true);
     }
   }
   window.addEventListener('message',sync);

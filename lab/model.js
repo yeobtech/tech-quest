@@ -93,11 +93,13 @@ const roles=[['data','DATA',13],['trig','TRIG',12],['echo','ECHO',11]];
 function field(id,label,initial){const choices=[...Object.keys(loc),...Object.keys(reserved)];return '<label>'+label+' <select id="'+id+'">'+choices.map(n=>'<option value="'+n+'" '+(+n===initial?'selected':'')+'>GPIO '+n+(reserved[n]?' · '+reserved[n]:'')+'</option>').join('')+'</select></label>'}
 $('inputs').innerHTML='<fieldset><legend><label><input id="dht" type="checkbox"> DHT11</label></legend>'+field(...roles[0]).replace('<select id="data">','<select id="data"><option value="">접점 선택</option><option value="4">GPIO 4</option>')+'VCC → 3.3 V · GND → GND</fieldset><fieldset><legend><label><input id="hc" type="checkbox"> HC-SR04</label></legend>'+field(...roles[1])+field(...roles[2])+'VCC → 5 V · GND → GND<label><input id="shift" type="checkbox"> ECHO에 5→3.3 V 레벨 변환</label></fieldset>';
 const wiring=new T.Group();scene.add(wiring);
-function wire(start,end,color,sideExit=false){
+function wire(start,end,color,label,sideExit=false){
   const mid=start.clone().lerp(end,.5);mid.y=11;
   const points=sideExit?[start,start.clone().add(new T.Vector3(3,0,0)),mid,end]:[start,mid,end];
   const curve=new T.CatmullRomCurve3(points);
-  wiring.add(new T.Mesh(new T.TubeGeometry(curve,32,.23,6,false),new T.MeshStandardMaterial({color})));
+  const mesh=new T.Mesh(new T.TubeGeometry(curve,32,.23,6,false),new T.MeshStandardMaterial({color}));
+  mesh.userData.cable={label,points:curve.getPoints(32)};
+  wiring.add(mesh);
 }
 function sensor(x,name){const b=block(x,-35,15,6,4,name==='DHT11'?0x258cc5:0x25735e);scene.remove(b);wiring.add(b);label(name,x,-35,13,4.1);const l=scene.children.at(-1);scene.remove(l);wiring.add(l);return new T.Vector3(x,4,-34)}
 current=null;
@@ -155,7 +157,7 @@ function refresh(){
       row.textContent='DHT11 '+(key==='DATA'?'DAT':key)+' → '+(end??'미연결')+' ';
       if(end){
         connected++;
-        if(freePositions[end])wire(terminalPoint(socket),new T.Vector3(...freePositions[end]),key==='VCC'?red:key==='DATA'?0x1d9876:black,true);
+        if(freePositions[end])wire(terminalPoint(socket),new T.Vector3(...freePositions[end]),key==='VCC'?red:key==='DATA'?0x1d9876:black,'DHT11 '+key+' → KS5034 '+end,true);
         const del=document.createElement('button');del.textContent='삭제';del.onclick=()=>{delete dhtWires[key];refresh()};row.append(del);
       }
       list.append(row);
@@ -179,15 +181,15 @@ function refresh(){
   for(const [id,x,name,voltage] of [['hc',16,'HC-SR04','5 V']]){
     if(!$(id).checked)continue;
     const start=sensor(x,name);
-    connection(id+'V',name+' VCC → '+voltage,()=>wire(start,new T.Vector3(-6+(id==='dht'?3:4)*2.54,4.2,24),red));
-    connection(id+'G',name+' GND → GND',()=>wire(start.clone().add(new T.Vector3(2,0,0)),new T.Vector3(-6+5*2.54,4.2,24),black));
+    connection(id+'V',name+' VCC → '+voltage,()=>wire(start,new T.Vector3(-6+(id==='dht'?3:4)*2.54,4.2,24),red,name+' VCC → KS5034 '+voltage));
+    connection(id+'G',name+' GND → GND',()=>wire(start.clone().add(new T.Vector3(2,0,0)),new T.Vector3(-6+5*2.54,4.2,24),black,name+' GND → KS5034 GND'));
     for(const [key,title] of id==='dht'?roles.slice(0,1):roles.slice(1)){
       const pin=+$(key).value;
       connection(key,name+' '+title+' → GPIO '+pin,()=>{
         if(used.has(pin))messages.push('GPIO '+pin+' 충돌 · '+used.get(pin)+' / '+title+'에 서로 다른 핀을 지정하세요.');
         used.set(pin,title);
         if(reserved[pin])messages.push('GPIO '+pin+' · '+reserved[pin]+' 점유. 다른 핀을 선택하세요.');
-        else wire(start,new T.Vector3(loc[pin],4.6,-19),key==='echo'?0x9457bb:0x1d9876);
+        else wire(start,new T.Vector3(loc[pin],4.6,-19),key==='echo'?0x9457bb:0x1d9876,name+' '+title+' → KS5034 GPIO'+pin);
       });
     }
   }
@@ -211,4 +213,4 @@ $('clearWires').onclick=()=>{
 };
 const missionTargets=new URLSearchParams(location.search).get('mode')==='observatory'
   ? mountMission({T,scene,wire,wiring,cam,orbit}) : null;
-setupViewer({T,scene,cam,orbit,renderer,canvas,categories,hits,missionTargets,freeTargets,onFreePin:directPin});
+setupViewer({T,scene,wiring,cam,orbit,renderer,canvas,categories,hits,missionTargets,freeTargets,onFreePin:directPin});

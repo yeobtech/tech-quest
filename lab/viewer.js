@@ -1,5 +1,5 @@
 // Shared camera and picking for the standalone lab and the embedded mission.
-export function setupViewer({T,scene,cam,orbit,renderer,canvas,categories,hits,missionTargets,freeTargets=[],onFreePin}) {
+export function setupViewer({T,scene,wiring,cam,orbit,renderer,canvas,categories,hits,missionTargets,freeTargets=[],onFreePin}) {
   const el=id=>document.getElementById(id);
   const post=data=>{if(missionTargets)parent.postMessage(data,location.origin)};
   const markers=[0x1676ae,0xca5907].map(color=>{
@@ -35,7 +35,17 @@ export function setupViewer({T,scene,cam,orbit,renderer,canvas,categories,hits,m
   el('front').onclick=front;el('back').onclick=()=>fit(new T.Vector3(0,-1,.12));
   el('all').onclick=()=>fit(cam.position.clone().sub(orbit.target));
   function mark(marker,objects){marker.visible=!!objects?.length;if(marker.visible)marker.box.copy(boxFor(objects)).expandByScalar(.3)}
+  function clearCable(){
+    const mesh=selected?.[0];
+    if(mesh?.userData.cable)mesh.material.emissive.setHex(0);
+  }
+  wiring.addEventListener('childremoved',({child})=>{
+    if(child!==selected?.[0])return;
+    selected=null;mark(markers[1],null);el('focus').disabled=true;
+    el('pinName').textContent='단자를 선택하세요';el('info').textContent='';
+  });
   function select(objects,part){
+    clearCable();
     selected=objects;mark(markers[1],objects);el('focus').disabled=!selected;
     el('pinName').textContent=part.name;
     el('info').textContent='GPIO '+part.gpio+' · '+part.volts+'\n'+part.use;
@@ -80,9 +90,27 @@ export function setupViewer({T,scene,cam,orbit,renderer,canvas,categories,hits,m
       const pixelsPerUnit=r.height/(-2*depth*Math.tan(cam.fov*Math.PI/360));
       if(distance<=1.24*pixelsPerUnit+2&&distance<best){nearest=mesh;best=distance}
     }
-    return nearest??solid?.object;
+    if(nearest)return nearest;
+    if(solid?.object.userData.cable)return solid.object;
+    // Give thin leads a five-pixel pick tolerance. Work in model space so hidden
+    // segments cannot be selected through the board and crossings prefer the closer lead.
+    const point=new T.Vector3();
+    let chosen=null,score=Infinity,front=Infinity;
+    for(const mesh of wiring.children){
+      const cable=mesh.userData.cable;if(!cable)continue;
+      for(let i=1;i<cable.points.length;i++){
+        const squared=ray.ray.distanceSqToSegment(cable.points[i-1],cable.points[i],undefined,point);
+        const depth=cam.position.distanceTo(point);
+        if(solid && depth>solid.distance+.4)continue;
+        const pixels=Math.sqrt(squared)*r.height/(2*depth*Math.tan(cam.fov*Math.PI/360));
+        if(pixels<=5 && (pixels<score-.25 || (Math.abs(pixels-score)<=.25 && depth<front))){
+          chosen=mesh;score=pixels;front=depth;
+        }
+      }
+    }
+    return chosen??solid?.object;
   }
-  const objectsFor=o=>o?.userData.id?[o]:o?.userData.part?.objects;
+  const objectsFor=o=>(o?.userData.id||o?.userData.cable)?[o]:o?.userData.part?.objects;
   let down=null;
   canvas.addEventListener('pointerdown',e=>{transition=null;down=[e.clientX,e.clientY]});
   canvas.addEventListener('pointermove',e=>{
@@ -94,7 +122,13 @@ export function setupViewer({T,scene,cam,orbit,renderer,canvas,categories,hits,m
     if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;
     const obj=pick(e);down=null;
     if(obj?.userData.id){selectPin(obj);if(missionTargets)post({type:'ks5034:pin',id:obj.userData.id});else onFreePin(obj.userData.id)}
-    else if(obj?.userData.part)selectPart(obj.userData.part);
+    else if(obj?.userData.cable){
+      clearCable();selected=[obj];mark(markers[1],null);el('focus').disabled=false;
+      obj.material.emissive.setHex(0xf89927);
+      const name=obj.userData.cable.label,details='선택한 연결선 · 연결 목록에서 삭제할 수 있습니다.';
+      el('pinName').textContent=name;el('info').textContent=details;
+      post({type:'ks5034:inspect',name,details});
+    }else if(obj?.userData.part)selectPart(obj.userData.part);
   });
   el('focus').disabled=true;
   new ResizeObserver(()=>{
