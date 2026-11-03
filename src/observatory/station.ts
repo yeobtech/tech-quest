@@ -8,8 +8,8 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void){
  const d=document.createElement('dialog');d.className='workshop station';d.setAttribute('aria-labelledby','station-title');
  d.innerHTML=`<small>기술 교관의 의뢰 · 첫 번째 보스</small><h2 id="station-title">고장 난 환경 관측소</h2>
  <div class="shield"><span class="golem" aria-hidden="true">▣ ▣</span><div><b>센서 오류 골렘</b><p data-shield></p></div></div>
- <h3>1 · 관측소 회로 복구</h3><p>가상 KS5034 + DHT11입니다. 위치는 실물 핀맵이 아닙니다. 드래그로 회전하고 휠로 확대하세요.</p>
- <div data-board></div><label>가상 센서 사양 <select data-profile><option value="unknown">미확인</option><option value="3v3">3.3V 호환 · DATA 풀업 3.3V</option><option value="5v">5V 전원 또는 DATA 풀업 5V</option></select></label>
+ <h3>1 · 관측소 회로 복구</h3><p>KS5034 Lab v4 · 앞면과 뒷면을 살펴보고 색 핀을 선택하세요. 모델은 교육용이며 실물 배선은 모듈의 핀 표기를 확인하세요.</p>
+ <div data-board></div><p><a href="./lab/index.html" target="_blank" rel="noopener">자유 실험실 열기 · DHT11 / HC-SR04</a></p><label>가상 센서 사양 <select data-profile><option value="unknown">미확인</option><option value="3v3">3.3V 호환 · DATA 풀업 3.3V</option><option value="5v">5V 전원 또는 DATA 풀업 5V</option></select></label>
  <p>보드 핀 하나와 센서 핀 하나를 차례로 선택하세요. 같은 센서 핀에 다시 연결하면 선이 교체됩니다.</p><div data-pins></div><small data-selected></small><div data-wires></div><button data-check>배선 검사</button><p data-wiremsg role="status"></p>
  <h3>2 · 온습도 수신</h3><p>실물은 전원 차단 후 모듈 핀 배열과 전압을 확인하세요. 5V DATA를 GPIO에 직접 연결하지 마세요.</p>
  <label><input type="checkbox" data-safe> 실물의 VCC·GND·DATA 배열, 3.3V 동작 및 DATA 풀업 3.3V를 확인함</label>
