@@ -108,6 +108,7 @@ export function installPalette({scene,cam,canvas,onPartsChange}){
     }
   });
   return {
+    place,
     contacts(){
       const targets=[];
       for(const {model,name} of placed.values())model.traverse(o=>{

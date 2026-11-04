@@ -2,7 +2,6 @@ import {installPalette} from './components/palette.js';
 import {createBoardContacts,boardContacts,terminalPoint} from './dht11.js';
 import { setupViewer } from './viewer.js';
 import * as T from 'three';
-import { mountMission } from './mission.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 const $=id=>document.getElementById(id), scene=new T.Scene(), canvas=document.querySelector('canvas');
 const renderer=new T.WebGLRenderer({canvas,antialias:true}); renderer.setPixelRatio(Math.min(devicePixelRatio,2));scene.background=new T.Color(0xe6eee8);
@@ -108,12 +107,12 @@ function wire(start,end,color,label,sideExit=false){
 }
 current=null;
 const inMission=new URLSearchParams(location.search).get('mode')==='observatory';
-const palette=inMission?null:installPalette({scene,cam,canvas,onPartsChange:refresh});
+const palette=installPalette({scene,cam,canvas,onPartsChange:refresh});
 const freePositions={...boardContacts};
 // Keep each physical socket distinct even when multiple headers share the same rail.
 const socketNames=new Map(Object.keys(freePositions).map(key=>[key,key]));
 const socketLabels=new Map();
-if(!inMission)for(const socket of digitalSockets){
+for(const socket of digitalSockets){
   freePositions[socket.key]=socket.position;
   socketNames.set(socket.key,socket.name);
   socketLabels.set(socket.key,socket.label);
@@ -124,7 +123,7 @@ for(const [index,{badge,value,x,z}] of boardBadges.entries()){
     const [px,,pz]=freePositions[k];
     return Math.abs(x-px)<.01 && Math.abs(z-pz)<.01;
   });
-  if(!key && !inMission){
+  if(!key){
     const name=typeof value==='number'?'GPIO'+value:({'G':'GND','3V3':'3V3','8/SDA':'GPIO8','9/SCL':'GPIO9'})[value];
     if(!name)continue;
     key=socketNames.has(name)?name+'@'+index:name;
@@ -132,7 +131,7 @@ for(const [index,{badge,value,x,z}] of boardBadges.entries()){
   }
   if(key)badgeSockets.push({badge,key});
 }
-const freeBoard=inMission?[]:createBoardContacts(scene,freePositions);
+const freeBoard=createBoardContacts(scene,freePositions);
 for(const socket of digitalSockets){
   const terminal=freeBoard.find(o=>o.userData.id==='B:'+socket.key);
   if(!terminal)continue;
@@ -179,6 +178,7 @@ function refresh(){
   }
   list.replaceChildren();
   const messages=[],used=new Map();
+  const missionWires={};
   let connected=0,total=0;
   const contacts=palette?.contacts()??[];
   partPins=contacts.filter(o=>!o.userData.contact);
@@ -204,6 +204,7 @@ function refresh(){
     const row=document.createElement('div');row.textContent=label+' ';list.append(row);
     if(!end){messages.push(componentName+' '+pin.label+' 미연결');continue}
     connected++;
+    if(inMission && dht)missionWires[pin.label]={net:end,label:socketLabels.get(socketKey)??end};
     const color=pin.role==='g'?black:pin.role==='v'?red:0x1d9876;
     wire(terminalPoint(socket),new T.Vector3(...freePositions[socketKey]),color,label,dht);
     const remove=document.createElement('button');remove.textContent='삭제';
@@ -222,14 +223,21 @@ function refresh(){
   const heading=document.createElement('h2');heading.textContent='연결 목록 · '+connected+' / '+total;list.prepend(heading);
   $('status').className=messages.length?'bad':'';
   $('status').textContent=messages.length?'⚠ '+messages.join('\n'):!connected?(total?'연결된 선이 없습니다. 부품 단자를 보드 접점까지 끌어 놓으세요.':'부품을 배치하고 핀을 연결하세요.'):studyPins?'일반 소자 연결 '+studyLeads+' / '+studyPins+' · 일반 소자의 전기적 동작은 검증되지 않습니다.':'✓ 가상 배선 검사 통과';
+  if(inMission){
+    if(!messages.length && connected)$('status').textContent='배선이 연결됐습니다. 상단의 미션 검사에서 관측소 회로를 확인하세요.';
+    parent.postMessage({type:'ks5034:circuit',wires:missionWires,
+      otherWires:connected-Object.keys(missionWires).length},location.origin);
+  }
 }
 $('shift').onchange=refresh;
 refresh();
 $('clearWires').onclick=()=>{pending='';directHint.textContent='';partWires.clear();refresh()};
-const missionTargets=new URLSearchParams(location.search).get('mode')==='observatory'
-  ? mountMission({T,scene,wire,wiring,cam,orbit}) : null;
+if(inMission){
+  document.querySelector('header').hidden=true;
+  palette.place('dht11',new T.Vector3(10,0,-42));
+}
 for(const {badge,key} of badgeSockets){
-  const socket=(missionTargets??freeBoard).find(o=>o.userData.id==='B:'+key);
+  const socket=freeBoard.find(o=>o.userData.id==='B:'+key);
   if(socket)Object.assign(badge.userData,{id:socket.userData.id,contact:socket});
 }
-setupViewer({T,scene,wiring,cam,orbit,renderer,canvas,categories,missionTargets,freeTargets,onFreePin:directPin});
+setupViewer({T,scene,wiring,cam,orbit,renderer,canvas,categories,freeTargets,onFreePin:directPin});

@@ -6,11 +6,11 @@ import './station.css';
 
 export function openStation(ids:string[],save:()=>boolean,done:()=>void){
  const d=document.createElement('dialog');d.className='workshop station';d.setAttribute('aria-labelledby','station-title');
- d.innerHTML=`<div class="station-head"><div><small>기술 교관 의뢰 · KS5034 LAB</small><h2 id="station-title">고장 난 온습도 관측소</h2></div><button data-exit>실습 종료 · 마을로 복귀</button></div>
- <div class="station-body"><div data-board></div><aside aria-label="배선 실습 정보">
+ d.innerHTML=`<div class="station-head"><div><small>기술 교관 의뢰 · KS5034 LAB</small><h2 id="station-title">고장 난 온습도 관측소</h2></div><div><button data-toggle aria-expanded="false">미션 검사 · 0/3</button><button data-exit>실습 종료 · 마을로 복귀</button></div></div>
+ <div class="station-body"><div data-board></div><aside aria-label="관측소 미션 검사" hidden>
  <p class="objective">DHT11의 전원·GND·DATA를 연결하세요.</p>
- <h3>선택 단자</h3><strong data-inspect>단자를 선택하세요</strong><p data-details>보드에서 핀을 누르거나 아래 버튼으로 선택하세요.</p>
- <div data-pins></div><p data-selected aria-live="polite"></p>
+ <section data-fallback><h3>선택 단자</h3><strong data-inspect>단자를 선택하세요</strong><p data-details>보드에서 핀을 누르거나 아래 버튼으로 선택하세요.</p>
+ <div data-pins></div><p data-selected aria-live="polite"></p></section>
  <h3>연결 목록 <span data-count></span></h3><div class="wire-key" aria-label="케이블 색상"><span>전원</span><span>접지</span><span>신호</span></div><div data-wires></div><button data-reset>배선 초기화</button>
  <h3>배선 검사</h3><label>가상 센서 사양 <select data-profile><option value="unknown">미확인</option><option value="3v3">3.3V 호환 · DATA 풀업 3.3V</option><option value="5v">5V 전원 또는 DATA 풀업 5V</option></select></label>
  <button data-check>배선 검사</button><p data-wiremsg role="status"></p>
@@ -25,6 +25,16 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void){
  const get=<T extends HTMLElement>(k:string)=>d.querySelector<T>('[data-'+k+']')!;
  const btn=(k:string)=>get<HTMLButtonElement>(k);
  const m=new Observatory(),w:Wires={};let selected='',controller:AbortController|undefined,mock=0,last=0;
+ let shared=false,otherWires=0,lastCircuit='';
+ const locations:Partial<Record<SensorPin,string>>={};
+ const missionPanel=d.querySelector('aside')!;
+ function showMission(visible:boolean){
+   missionPanel.hidden=!visible;
+   get('board').hidden=visible;
+   btn('toggle').setAttribute('aria-expanded',String(visible));
+   btn('toggle').textContent=visible?'배선 실습으로 돌아가기':'미션 검사 · '+Object.keys(w).length+'/3';
+ }
+ btn('toggle').onclick=()=>showMission(missionPanel.hidden);
  const completed=()=>Object.values(badges).some(id=>ids.includes(id));
  let board:ReturnType<typeof makeBoard>|undefined;
  const controls=(label:string,fn:()=>void)=>{const b=document.createElement('button');b.textContent=label;b.onclick=fn;return b};
@@ -43,12 +53,16 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void){
  function changed(){
    stop();m.setWired(false);get('wiremsg').textContent='배선 검사 후 진행하세요.';
    const list=get('wires');list.replaceChildren();
-   for(const pin of inputs)if(w[pin])list.append(controls('KS5034 '+w[pin]+' → DHT11 '+pin+' · 삭제',()=>{delete w[pin];changed()}));
+   for(const pin of inputs)if(w[pin]){
+     const line='DHT11 '+pin+' → KS5034 '+(locations[pin]??w[pin]);
+     if(shared){const row=document.createElement('div');row.textContent=line;list.append(row)}
+     else list.append(controls(line+' · 삭제',()=>{delete w[pin];changed()}));
+   }
    const count=Object.keys(w).length;
    get('count').textContent=count+' / 3';
    if(!count)list.textContent='연결된 선이 없습니다.';
    btn('reset').disabled=!count && !selected;
-   board?.update(w);refresh();
+   showMission(!missionPanel.hidden);refresh();
  }
  const expected={VCC:'3V3',DATA:'GPIO4',GND:'GND'} as const;
  const description:Record<string,string>={
@@ -64,7 +78,7 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void){
  function choose(id:string,start?:string){
    if(start)selected=start;
    inspect((id[0]==='B'?'KS5034 · ':'DHT11 · ')+id.slice(2),description[id]);
-   board?.highlight(id);
+
    if(!selected||selected[0]===id[0])selected=selected===id?'':id;
    else{const [b,s]=id[0]==='B'?[id,selected]:[selected,id];w[s.slice(2) as SensorPin]=b.slice(2) as BoardPin;selected='';changed()}
    get('selected').textContent=selected?'● 선택됨 · '+selected.slice(2)+' — '+(selected[0]==='B'?'센서':'보드')+' 핀을 선택하세요.':'다음 연결을 선택할 수 있습니다.';
@@ -72,10 +86,21 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void){
    btn('reset').disabled=!Object.keys(w).length&&!selected;
  }
  for(const [prefix,pins] of [['B',outputs],['S',inputs]] as const){const row=document.createElement('div');row.append(prefix==='B'?'KS5034 ':'DHT11 ');for(const pin of pins){const id=prefix+':'+pin;const button=controls(pin,()=>choose(id));button.dataset.pin=id;row.append(button);}get('pins').append(row)}
- btn('reset').onclick=()=>{for(const pin of inputs)delete w[pin];selected='';board?.highlight('');inspect('단자를 선택하세요','보드 또는 센서의 핀을 선택하세요.');get('selected').textContent='';get('pins').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed','false'));changed()};
- try{board=makeBoard(get('board'),choose,inspect)}catch{get('board').textContent='WebGL을 사용할 수 없습니다. 아래 핀 버튼으로 같은 회로를 연결하세요.'}
+ btn('reset').onclick=()=>{for(const pin of inputs)delete w[pin];selected='';inspect('단자를 선택하세요','보드 또는 센서의 핀을 선택하세요.');get('selected').textContent='';get('pins').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed','false'));changed()};
+ board=makeBoard(get('board'),state=>{
+   const next=JSON.stringify(state);
+   if(next===lastCircuit)return;
+   lastCircuit=next;shared=true;otherWires=state.otherWires;
+   get('fallback').hidden=true;btn('reset').hidden=true;
+   for(const pin of inputs){
+     const item=state.wires[pin];
+     if(item){w[pin]=item.net;locations[pin]=item.label}
+     else{delete w[pin];delete locations[pin]}
+   }
+   changed();
+ });
  get('profile').onchange=changed;get<HTMLInputElement>('safe').onchange=()=>{if(!get<HTMLInputElement>('safe').checked)stop();refresh()};
- btn('check').onclick=()=>{stop();const msg=wiringError(w,get<HTMLSelectElement>('profile').value as Profile);m.setWired(!msg);const wrong=inputs.filter(pin=>w[pin]!==expected[pin]);
+ btn('check').onclick=()=>{stop();const msg=wiringError(w,get<HTMLSelectElement>('profile').value as Profile)??(otherWires?'관측소 검사에는 DHT11만 사용합니다. 다른 부품의 배선을 분리하세요.':null);m.setWired(!msg);const wrong=inputs.filter(pin=>w[pin]!==expected[pin]);
  get('wiremsg').textContent=msg?'⚠ '+msg+' '+wrong.map(pin=>'DHT11 '+pin+' → KS5034 '+expected[pin]+(w[pin]?'로 교체':' 연결')).join(', '):'✓ 가상 회로 정상 · 세 단자가 올바르게 연결됐습니다.';refresh()};
  btn('mock').onclick=()=>{stop();let n=0;const tick=()=>{const v={temperature:24+(n++%3),humidity:55};m.receive('mock',v);get('link').textContent='Mock 연습 · 실제 측정 횟수에 포함되지 않습니다.';get('reading').textContent='Mock · '+v.temperature+' °C / '+v.humidity+' %'};tick();mock=window.setInterval(tick,2000);refresh()};
  btn('stop').onclick=stop;

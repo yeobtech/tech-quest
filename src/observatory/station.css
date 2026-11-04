@@ -4,3 +4,8 @@
 @media(max-width:700px),(max-height:470px){.workshop.station[open]{width:100vw;height:100dvh;max-height:100dvh;border-radius:0}.station-head{padding:5px 8px}.station-head small{display:none}.station-body{display:block;overflow:auto}.station .station-body>[data-board]{height:max(315px,48dvh)}.station-body aside{overflow:visible}.station-head button{font-size:14px}}
 
 .wire-key{display:flex;flex-wrap:wrap;gap:12px;font-size:14px;margin-bottom:6px}.wire-key span::before{content:"";display:inline-block;width:16px;height:4px;margin-right:4px;vertical-align:middle;background:#c14b48}.wire-key span:nth-child(2)::before{background:#607687}.wire-key span:nth-child(3)::before{background:#ba8d19}
+
+.station .station-body{display:flex;flex-direction:column;overflow:hidden}
+.station .station-body>[data-board],.station .station-body>aside{flex:1;min-height:0;height:auto}
+.station .station-body>aside{overflow:auto}
+.station .station-body [hidden]{display:none}
