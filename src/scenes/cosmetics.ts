@@ -28,6 +28,7 @@ const girl:Atlas={
  death:[[47,26,32,45],[49,28,32,46],[36,24,28,45,46,44,50,39],[50,29,32,46,31,48,36,44],[33,40,25,49],[58,42,40,47]]
 };
 const palettes:Record<string,string[]> = {
+ 'gear-scissors':['#432c24','#92502e','#c38443','#f2bd69','#fff2bc'],
  reinforced:['#172539','#345378','#60a6d2','#c4dfeb','#f2f8ff'],
  starlight:['#4a284b','#a25b69','#f6b25c','#fff2b4','#fffbea'],
  future:['#152b41','#176072','#23bbb9','#91ffee','#f5ffff']
@@ -55,7 +56,9 @@ export function decorate(ctx:CanvasRenderingContext2D,action:StudentAction,i:num
    }
    ctx.putImageData(pixels,0,0);
    const mark=w.WeaponSkin==='future'?['010','232','010']:w.WeaponSkin==='starlight'?['.3.','343','.3.']:['12','34'];
-   stamp(ctx,x-1,y-1,mark,pal);
+   if(w.WeaponSkin==='gear-scissors'){
+     stamp(ctx,x-2,y-2,['..2..','.323.','23032','.323.','..2..'],pal);
+   }else stamp(ctx,x-1,y-1,mark,pal);
  }
  if(pal && action==='attack' && (i===3||i===4)){
    // Only the impact arc lies beyond the blade at frame 4; the trailing boy arc is detached at frame 5.

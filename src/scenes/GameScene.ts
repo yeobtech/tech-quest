@@ -1,6 +1,8 @@
+import {openCrafting} from '../ui/Crafting';
 import {openQuests} from '../ui/QuestBoard';
 import {quests,ready} from '../data/quests';
 const BOARD_X=675;
+const BENCH_X=1190;
 import {rollDrops,materials,type MaterialId} from '../data/materials';
 import {openInventory} from '../ui/Inventory';
 import Phaser from 'phaser';
@@ -97,6 +99,13 @@ export class GameScene extends Phaser.Scene {
     else if (this.player.hp && interact) {
       if (this.map === VILLAGE) {
         if (Math.abs(this.player.x - VILLAGE.spawn.x) < 60) this.travel(FOREST);
+        else if(Math.abs(this.player.x-BENCH_X)<65){
+          this.scene.pause();this.input.keyboard!.enabled=false;
+          openCrafting(this.progress.state,next=>{
+            const ok=this.save.save(next);this.hud.saveStatus(ok);return ok;
+          },()=>{this.input.keyboard!.resetKeys();this.input.keyboard!.enabled=true;this.scene.resume();this.game.canvas.focus()});
+          return;
+        }
         else if(Math.abs(this.player.x-BOARD_X)<65){this.questBoard();return}
         else {
           const npc = VILLAGERS.find(npc => Math.abs(this.player.x - npc.x) < 70 && Math.abs(this.player.y - 602) < 65);
@@ -346,6 +355,10 @@ export class GameScene extends Phaser.Scene {
       }
       this.add.text(x, 550, npc.name + ' · E', { fontSize: '15px', backgroundColor: '#26463e' }).setOrigin(0.5, 1);
     }
+    for(const dx of [-36,36])this.add.rectangle(BENCH_X+dx,610,10,40,0x674635);
+    this.add.rectangle(BENCH_X,587,100,12,0xba8654);
+    this.add.rectangle(BENCH_X-22,575,23,14,0x546c71);
+    this.add.text(BENCH_X,546,'제작 작업대 · E',{fontSize:'14px',backgroundColor:'#254541'}).setOrigin(.5);
     this.portal(VILLAGE.spawn.x, '숲');
   }
   private drawForest() {

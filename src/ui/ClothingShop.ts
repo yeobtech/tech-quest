@@ -16,16 +16,17 @@ preview:(look:Wardrobe['equipped'],action?:'idle'|'attack',tool?:ActiveTool)=>HT
     shelves.replaceChildren();
     for(const item of catalog){
       const owned=w.owned.includes(item.id), worn=w.equipped[item.slot]===item.id && (!item.tool || state.tool===item.tool);
+      if(item.crafted && !owned)continue;
       const row=document.createElement('article');row.dataset.item=item.id;
       const picture=preview({...w.equipped,[item.slot]:item.id},item.tool?'attack':'idle',item.tool==='scissors'?'scissors':state.tool);
       picture.setAttribute('aria-label',item.name+' 착용 예시');picture.setAttribute('role','img');
       const details=document.createElement('div');
       const name=document.createElement('b');name.textContent=item.name;
       const desc=document.createElement('p');desc.textContent=item.description;
-      const price=document.createElement('small');price.textContent=item.price+' G'+(worn?' · 장착 중':owned?' · 보유':'');
+      const price=document.createElement('small');price.textContent=(item.crafted?'제작품':item.price+' G')+(worn?' · 장착 중':owned?' · 보유':'');
       details.append(name,desc,price);
-      const btn=document.createElement('button');btn.textContent=!owned?'구매':worn?(item.price?'해제':'장착 중'):'장착';
-      btn.disabled=(!owned && state.gold<item.price)||(worn&&!item.price);
+      const btn=document.createElement('button');btn.textContent=!owned?'구매':worn?(item.price||item.crafted?'해제':'장착 중'):'장착';
+      btn.disabled=(!owned && state.gold<item.price)||(worn&&!item.price&&!item.crafted);
       btn.onclick=()=>{
         const before=structuredClone(state.wardrobe),gold=state.gold,previousTool=state.tool;
         const resumeSkin=owned && item.tool==='scissors' && state.tool!=='scissors' && w.equipped.WeaponSkin===item.id;
