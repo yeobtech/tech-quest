@@ -26,12 +26,13 @@ export class Hud {
   location(map: { id: string; name: string }) {
     const name = map.name;
     const training = map.id === 'training-yard';
+    const factory=map.id==='abandoned-factory';
     const village = map.id === 'technician-village';
     document.querySelector('h1')!.firstChild!.textContent = name + ' ';
-    document.querySelector('.world-heading small')!.textContent = village ? 'VILLAGE / TECHNICIAN TOWN' : training ? 'TRAINING / ENGINEERING YARD' : "WORLD 01 / BEGINNER'S FOREST";
+    document.querySelector('.world-heading small')!.textContent = factory?'AREA / ABANDONED FACTORY':village ? 'VILLAGE / TECHNICIAN TOWN' : training ? 'TRAINING / ENGINEERING YARD' : "WORLD 01 / BEGINNER'S FOREST";
     this.root.querySelector('.top-overlay span')!.textContent = '◈ ' + name;
-    this.root.querySelector('.mission b')!.textContent = village ? '마을 주민 만나기' : training ? '출구 포털에 도달하세요' : '숲의 작은 수호자';
-    this.root.querySelector('.mission p')!.textContent = village ? '주민 곁에서 E · 왼쪽 포털로 숲 이동' : training ? 'A D 이동 · SPACE 점프 · Z 공격 · ↑↓ 사다리 · E 상호작용' : '몬스터를 사냥하며 조작을 익혀 보세요.';
+    this.root.querySelector('.mission b')!.textContent = factory?'제어실로 올라가세요':village ? '마을 주민 만나기' : training ? '출구 포털에 도달하세요' : '숲의 작은 수호자';
+    this.root.querySelector('.mission p')!.textContent = factory?'5층 차단기 E · 6층 제어실로 이동':village ? '주민 곁에서 E · 왼쪽 포털로 숲 이동' : training ? 'A D 이동 · SPACE 점프 · Z 공격 · ↑↓ 사다리 · E 상호작용' : '몬스터를 사냥하며 조작을 익혀 보세요.';
   }
   update(p: ProgressionSystem, hp: number) {
     const named=this.root.querySelector('.player-name')!.firstChild!;

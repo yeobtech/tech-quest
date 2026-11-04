@@ -1,3 +1,5 @@
+import {FACTORY,factoryLadders,factoryGate,traps,switchX,exitX,floorY} from '../data/factory';
+import {buildFactory} from './factory';
 import {openCrafting} from '../ui/Crafting';
 import {openQuests} from '../ui/QuestBoard';
 import {quests,ready} from '../data/quests';
@@ -22,6 +24,7 @@ export class GameScene extends Phaser.Scene {
   private map: MapData = FOREST;
   private chest?: Phaser.GameObjects.Container;
   private chestPrompt?: Phaser.GameObjects.Text;
+  private factory?:ReturnType<typeof buildFactory>;
   private finished = false;
   private climbing?: typeof YARD.ladders[number];
   private ladderDirection: -1 | 1 = -1;
@@ -46,12 +49,14 @@ export class GameScene extends Phaser.Scene {
     try { storage = window.localStorage; } catch { storage = { getItem: () => null, setItem: () => { throw new Error('Storage unavailable'); } }; }
     this.save = new SaveSystem(storage); this.progress ??= new ProgressionSystem(this.save.load());
     this.applyEquipment();
-    this.physics.world.setBounds(0, 0, this.map.width, 720);
-    if (this.map === TRAINING) this.drawTraining();
+    this.physics.world.setBounds(0, 0, this.map.width, this.map.height??720);
+    this.factory=this.map===FACTORY?buildFactory(this):undefined;
+    if(this.factory)this.hud.notice('1층 공장 입구');
+    else if (this.map === TRAINING) this.drawTraining();
     else if (this.map === VILLAGE) this.drawVillage();
     else this.drawForest();
     this.hud.location(this.map);
-    this.hud.notice(data.message ?? (this.map === VILLAGE ? '마을 주민 가까이에서 E로 대화하세요.' : this.map === TRAINING ? '훈련 시작! 오른쪽 출구로 이동하세요.' : '훈련장 입구에서 E를 누르세요.'));
+    this.hud.notice(data.message ?? (this.factory?'주황 사다리로 등반 · 5층 차단기를 찾으세요.':this.map === VILLAGE ? '마을 주민 가까이에서 E로 대화하세요.' : this.map === TRAINING ? '훈련 시작! 오른쪽 출구로 이동하세요.' : '훈련장 입구에서 E를 누르세요.'));
     if (this.physics.world.drawDebug) this.coordinates = this.add.text(12, 190, '', { backgroundColor: '#142d27' }).setScrollFactor(0).setDepth(100);
     const platforms = this.physics.add.staticGroup();
     this.map.platforms.forEach((p, index) => {
@@ -66,14 +71,15 @@ export class GameScene extends Phaser.Scene {
       const body=(tile as Phaser.Physics.Arcade.Image).body!;
       return !ladder || this.ladderDirection !== 1 || body.top !== ladder.top || ladder.x < body.left || ladder.x > body.right;
     });
-    this.enemies = this.map.enemies.map(e => new Enemy(this, e.kind, e.x, e.min, e.max));
+    if(this.factory)this.physics.add.collider(this.player,this.factory.lift);
+    this.enemies = this.map.enemies.map(e => new Enemy(this, e.kind, e.x, e.min, e.max,e.y));
     this.enemies.forEach(enemy => { this.physics.add.collider(enemy, platforms); this.physics.add.overlap(this.player, enemy, () => {
       if (enemy.active) this.receiveDamage(enemy.stats.damage);
     }); });
     this.combat = new CombatSystem(this);
     this.keys = this.input.keyboard!.addKeys('A,D,LEFT,RIGHT,SPACE,Z,X,E,UP,W,DOWN,S,SHIFT,I,Q') as Record<string, Phaser.Input.Keyboard.Key>;
     this.input.keyboard!.addCapture(['SPACE', 'LEFT', 'RIGHT', 'UP', 'DOWN']);
-    this.cameras.main.setBounds(0, 0, this.map.width, 720).startFollow(this.player, true, 0.09, 0.09);
+    this.cameras.main.setBounds(0, 0, this.map.width, this.map.height??720).startFollow(this.player, true, 0.09, 0.09);
     this.game.canvas.setAttribute('tabindex', '0'); this.game.canvas.setAttribute('aria-label', 'TECH QUEST 게임. A D 이동, Space 점프, Z 공격, X 발판 측정');
     this.input.on('pointerdown', () => this.game.canvas.focus());
     this.refresh(); this.hud.saveStatus(this.save.save(this.progress.state));
@@ -95,10 +101,25 @@ export class GameScene extends Phaser.Scene {
     this.player.move(this.keys.A.isDown || this.keys.LEFT.isDown, this.keys.D.isDown || this.keys.RIGHT.isDown, Phaser.Input.Keyboard.JustDown(this.keys.SPACE), !!this.climbing, this.keys.SHIFT.isDown);
     if (Phaser.Input.Keyboard.JustDown(this.keys.X)) this.measurePlatform();
     const interact = Phaser.Input.Keyboard.JustDown(this.keys.E);
-    if (this.player.hp && this.map === TRAINING) this.train(interact);
+    if(this.factory){
+      this.factory.tick();
+      if(this.player.hp){
+        this.useLadders(false);
+        const feet=this.player.body!.bottom;
+        for(const t of traps)if((this.factory.powered||t.y===floorY(0))&&Math.abs(this.player.x-t.x)<28&&feet>t.y-26&&feet<=t.y+6)this.receiveDamage(8);
+        const near=(x:number,y:number)=>Math.abs(this.player.x-x)<58&&Math.abs(feet-y)<35;
+        if(interact && near(switchX,floorY(4)))this.factory.cutPower();
+        if(interact && near(exitX,floorY(5))){
+          if(this.factory.powered)this.hud.notice('5층 차단기를 먼저 내리세요.');
+          else{this.travel(VILLAGE,'제어실 복구 완료! 기술자 마을로 돌아왔습니다.');return}
+        }
+        if(interact && near(230,floorY(0))){this.travel(VILLAGE);return}
+      }
+    }else if (this.player.hp && this.map === TRAINING) this.train(interact);
     else if (this.player.hp && interact) {
       if (this.map === VILLAGE) {
         if (Math.abs(this.player.x - VILLAGE.spawn.x) < 60) this.travel(FOREST);
+        else if(Math.abs(this.player.x-factoryGate)<55){this.travel(FACTORY);return}
         else if(Math.abs(this.player.x-BENCH_X)<65){
           this.scene.pause();this.input.keyboard!.enabled=false;
           openCrafting(this.progress.state,next=>{
@@ -134,16 +155,16 @@ export class GameScene extends Phaser.Scene {
     this.enemies.forEach(e => e.tick());
     this.coordinates?.setText(`x ${Math.round(this.player.x)}  y ${Math.round(this.player.y)}`);
     if (this.keys.Z.isDown) this.combat.attack(this.player, this.enemies, this.progress.attack, enemy => {
-      const q=quests.find(q=>q.id===enemy.kind)!;
-      const wasReady=ready(this.progress.state,q);
-      const kills=this.progress.state.journal[q.id];
-      if(typeof kills==='number')this.progress.state.journal[q.id]=Math.min(q.target,kills+1);
+      const q=quests.find(q=>q.id===enemy.kind);
+      const wasReady=q && ready(this.progress.state,q);
+      const kills=q && this.progress.state.journal[q.id];
+      if(q && typeof kills==='number')this.progress.state.journal[q.id]=Math.min(q.target,kills+1);
       this.dropLoot(enemy);
       const levels = this.progress.reward(enemy.stats.exp, enemy.stats.gold);
       this.combat.float(enemy.x, enemy.y - 70, `+${enemy.stats.exp} EXP · +${enemy.stats.gold} G`);
       if (levels) { this.player.hp = this.progress.maxHp; this.combat.float(this.player.x, this.player.y - 80, 'LEVEL UP!', '#f3d98b'); this.hud.notice(`레벨 ${this.progress.state.level} 달성! 체력과 공격력이 올랐습니다.`); }
       else this.hud.notice(`${enemy.stats.name} 처치 · 경험치 +${enemy.stats.exp}, 골드 +${enemy.stats.gold}`);
-      if(!wasReady && ready(this.progress.state,q))this.hud.notice('목표 달성 · '+q.name+' (Q: 보상 수령)');
+      if(q && !wasReady && ready(this.progress.state,q))this.hud.notice('목표 달성 · '+q.name+' (Q: 보상 수령)');
       this.hud.saveStatus(this.save.save(this.progress.state)); this.refresh();
     },this.progress.state.tool);
   }
@@ -211,7 +232,7 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(3500, () => { if (overlay.active) overlay.destroy(); });
   }
   private refresh() { this.hud.update(this.progress, this.player.hp); }
-  private train(interact: boolean) {
+  private useLadders(interact:boolean){
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     if (this.keys.DOWN.isDown || this.keys.S.isDown) this.grabLadder(1);
     else if (interact || this.keys.UP.isDown || this.keys.W.isDown) this.grabLadder(-1);
@@ -224,6 +245,10 @@ export class GameScene extends Phaser.Scene {
         this.player.setVelocityY(this.ladderDirection * 180);
       }
     }
+  }
+  private train(interact:boolean){
+    this.useLadders(interact);
+    const body=this.player.body as Phaser.Physics.Arcade.Body;
     for (const spike of YARD.spikes) {
       if (body.right > spike.x - 20 && body.left < spike.x + 20 && body.bottom > spike.y - 18 && body.top < spike.y)
         this.receiveDamage(10);
@@ -250,7 +275,7 @@ export class GameScene extends Phaser.Scene {
   private grabLadder(direction: -1 | 1 = -1) {
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     if (!this.player.hp) return;
-    const target = this.climbing ?? YARD.ladders.find(ladder =>
+    const target = this.climbing ?? (this.factory?factoryLadders:YARD.ladders).find(ladder =>
       body.right >= ladder.x - 32 && body.left <= ladder.x + 32 &&
       (direction < 0 ? body.bottom > ladder.top + 1 && body.bottom <= ladder.bottom + 3 :
         body.bottom >= ladder.top - 3 && body.bottom < ladder.bottom - 1));
@@ -359,6 +384,7 @@ export class GameScene extends Phaser.Scene {
     this.add.rectangle(BENCH_X,587,100,12,0xba8654);
     this.add.rectangle(BENCH_X-22,575,23,14,0x546c71);
     this.add.text(BENCH_X,546,'제작 작업대 · E',{fontSize:'14px',backgroundColor:'#254541'}).setOrigin(.5);
+    this.portal(factoryGate,'버려진 기계공장');
     this.portal(VILLAGE.spawn.x, '숲');
   }
   private drawForest() {
