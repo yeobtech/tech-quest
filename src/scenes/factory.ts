@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import {FACTORY,floors,floorY,factoryLadders,traps,ferry,switchX,exitX} from '../data/factory';
+import {FACTORY,floors,floorY,factoryLadders,traps,ferry,switchX,exitX,checkpoint} from '../data/factory';
 
 export function buildFactory(s:Phaser.Scene){
   s.cameras.main.setBackgroundColor('#101328');
@@ -77,6 +77,8 @@ export function buildFactory(s:Phaser.Scene){
   };
   drawHazards(true);
   label(230,floorY(0)-42,'마을 복귀 · E');label(436,floorY(2)-45,'SPACE ▶');label(915,floorY(3)-36,'◀ 운반대 탑승');
+  const beacon=label(checkpoint.x,checkpoint.y-38,'◇ 복귀 지점');
+  let checkpointActive=false;
   const control=label(switchX,floorY(4)-36,'차단기 · E');
   label(exitX,floorY(5)-45,'제어실 출구 · E');
   deck.lineStyle(5,0x8bf4df).strokeRect(exitX-27,floorY(5)-68,54,68);
@@ -99,6 +101,8 @@ export function buildFactory(s:Phaser.Scene){
     g.generateTexture(kind,40,30);g.destroy();
   }
   let powered=true;
-  return {lift,cutPower(){powered=false;drawHazards(false);control.setText('차단 완료 ✓')},
+  return {lift,get checkpointActive(){return checkpointActive},
+    activateCheckpoint(){checkpointActive=true;beacon.setText('◆ 복귀 지점 활성').setColor('#89ffdc')},
+    cutPower(){powered=false;drawHazards(false);control.setText('차단 완료 ✓')},
     get powered(){return powered},tick(){if(lift.x>=ferry.right)body.setVelocityX(-ferry.speed);if(lift.x<=ferry.left)body.setVelocityX(ferry.speed)}};
 }

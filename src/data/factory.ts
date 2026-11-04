@@ -14,3 +14,6 @@ export const FACTORY:MapData={
     {kind:'drone',x:960,y:floorY(3)-72,min:865,max:1040},{kind:'drone',x:390,y:floorY(3)-82,min:285,max:490}]
 };
 export const factoryGate=1650, switchX=320, exitX=260;
+
+export const checkpoint={x:240,y:floorY(2)};
+export const factoryReward={exp:50,gold:30};

@@ -1,4 +1,4 @@
-import {FACTORY,factoryLadders,factoryGate,traps,switchX,exitX,floorY} from '../data/factory';
+import {FACTORY,factoryLadders,factoryGate,traps,switchX,exitX,floorY,checkpoint,factoryReward} from '../data/factory';
 import {buildFactory} from './factory';
 import {openCrafting} from '../ui/Crafting';
 import {openQuests} from '../ui/QuestBoard';
@@ -108,10 +108,19 @@ export class GameScene extends Phaser.Scene {
         const feet=this.player.body!.bottom;
         for(const t of traps)if((this.factory.powered||t.y===floorY(0))&&Math.abs(this.player.x-t.x)<28&&feet>t.y-26&&feet<=t.y+6)this.receiveDamage(8);
         const near=(x:number,y:number)=>Math.abs(this.player.x-x)<58&&Math.abs(feet-y)<35;
+        if(!this.player.hp)return;
+        if(!this.factory.checkpointActive && near(checkpoint.x,checkpoint.y) && (this.player.body!.blocked.down || this.player.body!.touching.down)){
+          this.factory.activateCheckpoint();this.hud.notice('3층 체크포인트 활성 · 공장 안에서 사망하면 여기서 복귀합니다.');
+        }
         if(interact && near(switchX,floorY(4)))this.factory.cutPower();
         if(interact && near(exitX,floorY(5))){
           if(this.factory.powered)this.hud.notice('5층 차단기를 먼저 내리세요.');
-          else{this.travel(VILLAGE,'제어실 복구 완료! 기술자 마을로 돌아왔습니다.');return}
+          else{
+            const reward=this.progress.clearFactory(next=>this.save.save(next));
+            if(reward==='failed')this.hud.notice('보상을 저장하지 못했습니다. 출구에서 E로 다시 시도하세요.');
+            else this.travel(VILLAGE,reward==='first'?'공장 최초 복구 · EXP +'+factoryReward.exp+' · 골드 +'+factoryReward.gold:'제어실 복구 완료 · 마을로 복귀했습니다.');
+            return;
+          }
         }
         if(interact && near(230,floorY(0))){this.travel(VILLAGE);return}
       }
@@ -202,9 +211,10 @@ export class GameScene extends Phaser.Scene {
         this.climbing = undefined;
         this.player.setVelocity(0).setAccelerationX(0);
         this.time.delayedCall(650, () => {
-          (this.player.body as Phaser.Physics.Arcade.Body).reset(this.map.spawn.x, this.map.spawn.y);
+          const spawn=this.factory?.checkpointActive?{x:checkpoint.x,y:checkpoint.y-32}:this.map.spawn;
+          (this.player.body as Phaser.Physics.Arcade.Body).reset(spawn.x,spawn.y);
           this.player.hp = this.progress.maxHp; this.refresh();
-          this.hud.notice('다시 도전! 시작 지점에서 체력을 회복했습니다.');
+          this.hud.notice(this.factory?.checkpointActive?'3층 체크포인트에서 체력을 회복했습니다.':'다시 도전! 시작 지점에서 체력을 회복했습니다.');
         });
       }
       this.refresh();
