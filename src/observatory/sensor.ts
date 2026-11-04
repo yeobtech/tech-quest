@@ -13,13 +13,16 @@ export class Lines {
     const parts=chunk.split('\n');
     for(let i=0;i<parts.length;i++){
       if(!this.overflow){if(this.tail.length+parts[i].length>512){this.tail='';this.overflow=true}else this.tail+=parts[i]}
-      if(i<parts.length-1){emit(this.overflow?null:parseSample(this.tail));this.tail='';this.overflow=false}
+      if(i<parts.length-1){
+        if(this.overflow || !this.tail.startsWith('#'))emit(this.overflow?null:parseSample(this.tail));
+        this.tail='';this.overflow=false;
+      }
     }
   }
 }
 export async function readSerial(signal:AbortSignal,onOpen:()=>void,onSample:(v:Sample|null)=>void) {
   // Called directly from the Connect button, never on scene load.
-  if(!navigator.serial)throw Error('Web Serial 미지원 · 데스크톱 Chrome의 localhost 또는 HTTPS에서 여세요.');
+  if(!navigator.serial)throw Error('Web Serial 미지원 · 데스크톱 Chrome/Edge의 localhost 또는 HTTPS에서 여세요.');
   const port=await navigator.serial.requestPort();
   if(signal.aborted)return;
   await port.open({baudRate:115200});

@@ -18,7 +18,7 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void){
  <h3>2 · 온습도 수신</h3><p>실물은 전원 차단 후 모듈 핀 배열과 전압을 확인하세요. 5V DATA를 GPIO에 직접 연결하지 마세요.</p>
  <label><input type="checkbox" data-safe> 실물의 VCC·GND·DATA 배열, 3.3V 동작 및 DATA 풀업 3.3V를 확인함</label>
  <div><button data-connect>실제 USB 장치 연결</button> <button data-stop>연결 해제</button> <button data-mock>Mock 연습</button></div>
- <p data-link role="status"></p><output data-reading>온도 — °C · 습도 — %</output>
+ <p data-link role="status"></p><p data-last>마지막 정상 USB 측정 —</p><output data-reading>온도 — °C · 습도 — %</output>
  <h3>3 · 방어막 진단</h3><label>입력 → 처리 → 출력에 해당하는 순서는?<select data-answer><option value="">선택하세요</option><option>USB로 출력 → 센서 측정 → 보드에서 검사</option><option>${principle}</option></select></label>
  <button data-unlock>방어막 해제</button><p data-result role="status"></p><p><a href="./lab/index.html" target="_blank" rel="noopener">자유 실험실 열기 ↗</a></p><small>교육용 가상 모델 · 실물은 핀 표기를 확인하세요.</small></aside></div>`;
  document.body.append(d);d.showModal();
@@ -40,7 +40,7 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void){
  const controls=(label:string,fn:()=>void)=>{const b=document.createElement('button');b.textContent=label;b.onclick=fn;return b};
  function refresh(){
    const safe=get<HTMLInputElement>('safe').checked;
-   btn('connect').disabled=!safe||!m.wired||!!controller||!!mock||completed();
+   btn('connect').disabled=!navigator.serial||!window.isSecureContext||!safe||!m.wired||!!controller||!!mock||completed();
    btn('stop').disabled=!controller&&!mock;btn('mock').disabled=!!controller||!!mock||!m.wired;
    btn('unlock').disabled=completed()||!m.connected||m.count<3||!m.wired;
    get('shield').textContent=completed()?'방어막 해제 · '+title+(ids.includes(badges.teacher)?' (교사 확인)':''):'방어막 작동 · 실제 정상 측정 '+m.count+' / 3';
@@ -48,7 +48,7 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void){
  }
  function stop(){
    controller?.abort();if(mock)window.clearInterval(mock);mock=0;m.resetConnection();last=0;
-   get('link').textContent='연결 안 됨';get('reading').textContent='온도 — °C · 습도 — %';refresh();
+   get('link').textContent=navigator.serial&&window.isSecureContext?'연결 안 됨':'USB 연결 미지원 · 데스크톱 Chrome 또는 Edge에서 localhost나 HTTPS로 여세요.';get('reading').textContent='온도 — °C · 습도 — %';refresh();
  }
  function changed(){
    stop();m.setWired(false);get('wiremsg').textContent='배선 검사 후 진행하세요.';
@@ -108,7 +108,10 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void){
    stop();const c=new AbortController();controller=c;refresh();get('link').textContent='실제 USB · 장치 선택 대기';
    let end='실제 USB 연결이 종료됐습니다.';
    try{await readSerial(c.signal,()=>{m.connected=true;last=Date.now();get('link').textContent='실제 USB 연결 · 수신 대기';refresh()},v=>{
-     last=Date.now();m.receive('serial',v);get('reading').textContent=v?'실제 USB · '+v.temperature+' °C / '+v.humidity+' %':'측정 실패 · 값 없음';get('link').textContent='실제 USB 연결';refresh();
+     const now=Date.now();
+     if(now-last>5500)m.receive('serial',null);
+     if(v){last=now;get('last').textContent='마지막 정상 USB 측정 · '+new Date(now).toLocaleString('ko-KR')}
+     m.receive('serial',v);get('reading').textContent=v?'실제 USB · '+v.temperature+' °C / '+v.humidity+' %':'측정 실패 · 값 없음';get('link').textContent=!v?'USB 연결됨 · 측정 실패':m.count===3?'USB 연결됨 · 연속 3회 측정 검증 완료':'USB 연결됨 · 정상 측정 '+m.count+' / 3';refresh();
    })}catch(e){end='연결 실패 · '+(e instanceof Error?e.message:String(e))}
    finally{controller=undefined;m.resetConnection();if(d.open){get('link').textContent=c.signal.aborted?'연결 해제':end;get('reading').textContent='온도 — °C · 습도 — %';refresh()}}
  };
