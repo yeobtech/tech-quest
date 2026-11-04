@@ -15,7 +15,7 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void){
  <h3>배선 검사</h3><label>가상 센서 사양 <select data-profile><option value="unknown">미확인</option><option value="3v3" selected>3.3V 호환 · DATA 풀업 3.3V</option><option value="5v">5V 전원 또는 DATA 풀업 5V</option></select></label>
  <button data-check>배선 검사</button><p data-wiremsg role="status"></p>
  <div class="shield"><span class="golem" aria-hidden="true">▣ ▣</span><div><b>센서 오류 골렘</b><p data-shield></p></div></div>
- <h3>2 · 온습도 수신</h3><p>이번 실물 구성: KS5034 · DHT11 3핀 · VCC → 3V3, DATA → GPIO4, GND → GND. 5V DATA를 GPIO에 직접 연결하지 마세요.</p>
+ <h3>2 · 온습도 수신</h3><p>이번 실물 구성: KS5034 · DHT11 3핀 · VCC → 3V3, DATA → GPIO21, GND → GND. 5V DATA를 GPIO에 직접 연결하지 마세요.</p>
  <label><input type="checkbox" data-safe> 실물의 VCC·GND·DATA 배열, 3.3V 동작 및 DATA 풀업 3.3V를 확인함</label>
  <div><button data-connect>실제 USB 장치 연결</button> <button data-stop>연결 해제</button> <button data-mock>Mock 연습</button></div>
  <p data-link role="status"></p><p data-last>마지막 정상 USB 측정 —</p><output data-reading>온도 — °C · 습도 — %</output>
@@ -65,7 +65,7 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void){
    showMission(!missionPanel.hidden);refresh();
  }
  const description:Record<string,string>={
-   'B:GPIO4':'GPIO4 · 3.3 V 로직 · DHT11 DATA를 읽는 디지털 입력',
+   'B:GPIO21':'GPIO21 · 3.3 V 로직 · DHT11 DATA를 읽는 디지털 입력',
    'B:3V3':'3.3 V · 센서에 전원을 공급하는 단자',
    'B:5V':'5 V · 이 실습에서는 연결하면 안 되는 전원',
    'B:GND':'0 V · 센서와 기준 전위를 공유하는 접지',

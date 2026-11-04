@@ -1,7 +1,7 @@
 // Standalone example: only for a verified 3.3V DHT11 module with DATA pulled up to 3.3V.
 // Arduino Library Manager: "DHT sensor library" by Adafruit and Adafruit Unified Sensor.
 #include <DHT.h>
-constexpr uint8_t DATA_PIN = 4;
+constexpr uint8_t DATA_PIN = 21;
 DHT sensor(DATA_PIN, DHT11);
 void setup() {
   Serial.begin(115200);
