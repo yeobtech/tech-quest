@@ -1,3 +1,4 @@
+import {readInventory} from '../data/materials';
 import { newProgress, type Progress } from './ProgressionSystem';
 import { readWardrobe } from '../data/shop';
 import { restoreTool } from '../data/tools';
@@ -11,7 +12,7 @@ export class SaveSystem {
       if (data?.version !== 1) return newProgress();
       const p = data.progress;
       if (!p || !['level', 'exp', 'gold', 'kills'].every(k => Number.isSafeInteger(p[k]) && p[k] >= 0) || p.level < 1 || p.level > 100) return newProgress();
-      const result = { ...newProgress(), level: p.level, exp: p.exp, gold: p.gold, kills: p.kills, wardrobe: readWardrobe(p.wardrobe) };
+      const result = { ...newProgress(), inventory:readInventory(p.inventory), level: p.level, exp: p.exp, gold: p.gold, kills: p.kills, wardrobe: readWardrobe(p.wardrobe) };
       if (['입문','탐구','설계','제작'].includes(p.learning?.rank) && Array.isArray(p.learning.completedMissionIds) && p.learning.completedMissionIds.every((v:unknown)=>typeof v==='string')) result.learning=p.learning;
       result.tool=restoreTool(p.tool,result.learning.completedMissionIds);
       return result;

@@ -1,3 +1,5 @@
+import {rollDrops,materials,type MaterialId} from '../data/materials';
+import {openInventory} from '../ui/Inventory';
 import Phaser from 'phaser';
 import { FOREST, TRAINING, YARD, type MapData } from '../data/maps';
 import { VILLAGE, VILLAGERS, FOREST_GATE } from '../data/village';
@@ -20,6 +22,7 @@ export class GameScene extends Phaser.Scene {
   private ladderDirection: -1 | 1 = -1;
   private player!: Player;
   private enemies: Enemy[] = [];
+  private loot = new Map<Phaser.GameObjects.Text, MaterialId>();
   private combat!: CombatSystem;
   private progress!: ProgressionSystem;
   private save!: SaveSystem;
@@ -29,6 +32,7 @@ export class GameScene extends Phaser.Scene {
   constructor(private hud: Hud) { super('forest'); }
   preload() { preloadApprentice(this); }
   create(data: { map?: MapData; hp?: number; message?: string } = {}) {
+    this.loot.clear();
     this.map = data.map ?? FOREST;
     this.finished = false; this.climbing = undefined; this.chest = undefined; this.chestPrompt = undefined; this.measurement = undefined;
     assembleApprentice(this);
@@ -62,7 +66,7 @@ export class GameScene extends Phaser.Scene {
       if (enemy.active) this.receiveDamage(enemy.stats.damage);
     }); });
     this.combat = new CombatSystem(this);
-    this.keys = this.input.keyboard!.addKeys('A,D,LEFT,RIGHT,SPACE,Z,X,E,UP,W,DOWN,S,SHIFT') as Record<string, Phaser.Input.Keyboard.Key>;
+    this.keys = this.input.keyboard!.addKeys('A,D,LEFT,RIGHT,SPACE,Z,X,E,UP,W,DOWN,S,SHIFT,I') as Record<string, Phaser.Input.Keyboard.Key>;
     this.input.keyboard!.addCapture(['SPACE', 'LEFT', 'RIGHT', 'UP', 'DOWN']);
     this.cameras.main.setBounds(0, 0, this.map.width, 720).startFollow(this.player, true, 0.09, 0.09);
     this.game.canvas.setAttribute('tabindex', '0'); this.game.canvas.setAttribute('aria-label', 'TECH QUEST 게임. A D 이동, Space 점프, Z 공격, X 발판 측정');
@@ -71,6 +75,15 @@ export class GameScene extends Phaser.Scene {
   }
   update() {
     if (!this.player) return;
+    if(Phaser.Input.Keyboard.JustDown(this.keys.I) && !document.querySelector('dialog[open]')){
+      this.scene.pause();this.input.keyboard!.enabled=false;
+      openInventory(this.progress.state.inventory,()=>{
+        this.input.keyboard!.resetKeys();this.input.keyboard!.enabled=true;
+        this.scene.resume();this.game.canvas.focus();
+      });
+      return;
+    }
+    if(this.player.hp)this.collectLoot();
     this.player.move(this.keys.A.isDown || this.keys.LEFT.isDown, this.keys.D.isDown || this.keys.RIGHT.isDown, Phaser.Input.Keyboard.JustDown(this.keys.SPACE), !!this.climbing, this.keys.SHIFT.isDown);
     if (Phaser.Input.Keyboard.JustDown(this.keys.X)) this.measurePlatform();
     const interact = Phaser.Input.Keyboard.JustDown(this.keys.E);
@@ -105,12 +118,38 @@ export class GameScene extends Phaser.Scene {
     this.enemies.forEach(e => e.tick());
     this.coordinates?.setText(`x ${Math.round(this.player.x)}  y ${Math.round(this.player.y)}`);
     if (this.keys.Z.isDown) this.combat.attack(this.player, this.enemies, this.progress.attack, enemy => {
+      this.dropLoot(enemy);
       const levels = this.progress.reward(enemy.stats.exp, enemy.stats.gold);
       this.combat.float(enemy.x, enemy.y - 70, `+${enemy.stats.exp} EXP · +${enemy.stats.gold} G`);
       if (levels) { this.player.hp = this.progress.maxHp; this.combat.float(this.player.x, this.player.y - 80, 'LEVEL UP!', '#f3d98b'); this.hud.notice(`레벨 ${this.progress.state.level} 달성! 체력과 공격력이 올랐습니다.`); }
       else this.hud.notice(`${enemy.stats.name} 처치 · 경험치 +${enemy.stats.exp}, 골드 +${enemy.stats.gold}`);
       this.hud.saveStatus(this.save.save(this.progress.state)); this.refresh();
     },this.progress.state.tool);
+  }
+  private dropLoot(enemy:Enemy){
+    rollDrops(enemy.kind).forEach((id,index)=>{
+      const x=Phaser.Math.Clamp(enemy.x+index*24,14,this.map.width-14);
+      const tops=this.map.platforms.filter(p=>Math.abs(p.x-x)<=p.w/2 && p.y>=enemy.y).map(p=>p.y);
+      const floor=Math.min(...tops);
+      if(!Number.isFinite(floor))return;
+      const sprite=this.add.text(x,enemy.y-12,materials[id].icon,{fontSize:'22px',backgroundColor:'#243d39'}).setOrigin(.5,1).setDepth(8);
+      this.tweens.add({targets:sprite,y:floor,duration:320,ease:'Quad.easeIn',onComplete:()=>this.loot.set(sprite,id)});
+    });
+  }
+  private collectLoot(){
+    const picked:string[]=[];
+    for(const [sprite,id] of this.loot){
+      if(Math.hypot(sprite.x-this.player.x,sprite.y-12-this.player.y)>52)continue;
+      this.loot.delete(sprite);sprite.destroy();
+      const bag=this.progress.state.inventory, count=bag[id]??0;
+      bag[id]=Math.min(Number.MAX_SAFE_INTEGER,count+1);
+      picked.push(materials[id].name);
+      if(!count)this.combat.float(this.player.x,this.player.y-55-picked.length*22,'✦ 새 재료 · '+materials[id].name,'#ffe099');
+    }
+    if(picked.length){
+      this.hud.notice('획득 · '+picked.join(', ')+'  (I: 재료 가방)');
+      this.hud.saveStatus(this.save.save(this.progress.state));
+    }
   }
   private applyEquipment(){ applyWardrobe(this,this.progress.state.wardrobe.equipped,this.progress.state.tool); }
   private receiveDamage(damage: number) {
