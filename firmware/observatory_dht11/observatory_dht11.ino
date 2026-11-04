@@ -6,7 +6,7 @@ DHT sensor(DATA_PIN, DHT11);
 void setup() {
   Serial.begin(115200);
   sensor.begin();
-  Serial.println("# DHT11 ready; DATA=GPIO4; interval=2000ms");
+  Serial.printf("# DHT11 ready; DATA=GPIO%u; interval=2000ms\n", unsigned(DATA_PIN));
 }
 void loop() {
   delay(2000);

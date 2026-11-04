@@ -64,20 +64,19 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void){
    btn('reset').disabled=!count && !selected;
    showMission(!missionPanel.hidden);refresh();
  }
- const expected={VCC:'3V3',DATA:'GPIO4',GND:'GND'} as const;
  const description:Record<string,string>={
    'B:GPIO4':'GPIO4 · 3.3 V 로직 · DHT11 DATA를 읽는 디지털 입력',
    'B:3V3':'3.3 V · 센서에 전원을 공급하는 단자',
    'B:5V':'5 V · 이 실습에서는 연결하면 안 되는 전원',
    'B:GND':'0 V · 센서와 기준 전위를 공유하는 접지',
    'S:VCC':'전원 입력 · 3.3 V 호환 모듈을 가정합니다.',
-   'S:DATA':'온습도 신호 · 보드 GPIO4로 연결합니다.',
+   'S:DATA':'온습도 신호 · 사용할 GPIO와 펌웨어의 DATA_PIN 번호를 맞추세요.',
    'S:GND':'0 V · 보드 GND로 연결합니다.'
  };
  function inspect(name:string,details:string){get('inspect').textContent=name;get('details').textContent=details}
  function choose(id:string,start?:string){
    if(start)selected=start;
-   inspect((id[0]==='B'?'KS5034 · ':'DHT11 · ')+id.slice(2),description[id]);
+   inspect((id[0]==='B'?'KS5034 · ':'DHT11 · ')+id.slice(2),description[id]??'디지털 신호 핀 · 펌웨어의 DATA_PIN과 같은 번호를 사용하세요.');
 
    if(!selected||selected[0]===id[0])selected=selected===id?'':id;
    else{const [b,s]=id[0]==='B'?[id,selected]:[selected,id];w[s.slice(2) as SensorPin]=b.slice(2) as BoardPin;selected='';changed()}
@@ -100,8 +99,8 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void){
    changed();
  });
  get('profile').onchange=changed;get<HTMLInputElement>('safe').onchange=()=>{if(!get<HTMLInputElement>('safe').checked)stop();refresh()};
- btn('check').onclick=()=>{stop();const msg=wiringError(w,get<HTMLSelectElement>('profile').value as Profile)??(otherWires?'관측소 검사에는 DHT11만 사용합니다. 다른 부품의 배선을 분리하세요.':null);m.setWired(!msg);const wrong=inputs.filter(pin=>w[pin]!==expected[pin]);
- get('wiremsg').textContent=msg?'⚠ '+msg+' '+wrong.map(pin=>'DHT11 '+pin+' → KS5034 '+expected[pin]+(w[pin]?'로 교체':' 연결')).join(', '):'✓ 가상 회로 정상 · 세 단자가 올바르게 연결됐습니다.';refresh()};
+ btn('check').onclick=()=>{stop();const msg=wiringError(w,get<HTMLSelectElement>('profile').value as Profile)??(otherWires?'관측소 검사에는 DHT11만 사용합니다. 다른 부품의 배선을 분리하세요.':null);m.setWired(!msg);
+ get('wiremsg').textContent=msg?'⚠ '+msg:'✓ 가상 회로 정상 · 실물 펌웨어의 DATA_PIN을 '+w.DATA!.slice(4)+'로 설정하세요.';refresh()};
  btn('mock').onclick=()=>{stop();let n=0;const tick=()=>{const v={temperature:24+(n++%3),humidity:55};m.receive('mock',v);get('link').textContent='Mock 연습 · 실제 측정 횟수에 포함되지 않습니다.';get('reading').textContent='Mock · '+v.temperature+' °C / '+v.humidity+' %'};tick();mock=window.setInterval(tick,2000);refresh()};
  btn('stop').onclick=stop;
  btn('connect').onclick=async()=>{
