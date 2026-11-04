@@ -1,6 +1,6 @@
 # 고장 난 환경 관측소 실습 안내
 
-이 폴더는 독립 예제다. 게임에서 보드를 플래시하거나 기존 MQTT 펌웨어를 변경하지 않는다.
+이번 실물 구성은 KS5034 ESP32-S3 Pro와 3.3V DHT11 3핀 모듈이다. VCC → 3V3, DATA → GPIO4, GND → GND로 연결하고 USB PROG 포트를 사용한다. 이 폴더에서 PlatformIO의 pio run으로 업로드 없이 빌드할 수 있다. 115200 baud 출력에서 #으로 시작하는 줄은 진단 메시지다. 게임에서 보드를 플래시하거나 기존 MQTT 펌웨어를 변경하지 않는다.
 
 1. [Keyestudio KS5034 공식 핀맵](https://docs.keyestudio.com/projects/KS5034/en/latest/docs/KS5034%20Keyestudio%20ESP32%20S3%20PRO%20Development%20Board.html#pin-out)에서 보드 방향, IO4 표기와 전원 선택부를 실물과 대조한다. 공식 표에서 IO45는 RGB, IO1은 전류 센서, IO19/20은 USB OTG다. 게임 화면의 배치는 물리 핀 위치가 아니다.
 2. 전원을 끈 상태에서 **정확한 DHT11 모듈의 자료**와 실크 인쇄로 VCC/GND/DATA 순서, 3.3V 동작, DATA 풀업이 어느 전원에 연결됐는지 확인한다. [Keyestudio KS6033](https://docs.keyestudio.com/projects/KS6033/en/latest/docs/KS6033%20Humidity%20temperature%20Module.html)은 5V로 명시된 반례다. DHT11이라는 이름만으로 3.3V 호환을 추정하지 않는다.

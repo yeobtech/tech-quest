@@ -12,10 +12,10 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void){
  <section data-fallback><h3>선택 단자</h3><strong data-inspect>단자를 선택하세요</strong><p data-details>보드에서 핀을 누르거나 아래 버튼으로 선택하세요.</p>
  <div data-pins></div><p data-selected aria-live="polite"></p></section>
  <h3>연결 목록 <span data-count></span></h3><div class="wire-key" aria-label="케이블 색상"><span>전원</span><span>접지</span><span>신호</span></div><div data-wires></div><button data-reset>배선 초기화</button>
- <h3>배선 검사</h3><label>가상 센서 사양 <select data-profile><option value="unknown">미확인</option><option value="3v3">3.3V 호환 · DATA 풀업 3.3V</option><option value="5v">5V 전원 또는 DATA 풀업 5V</option></select></label>
+ <h3>배선 검사</h3><label>가상 센서 사양 <select data-profile><option value="unknown">미확인</option><option value="3v3" selected>3.3V 호환 · DATA 풀업 3.3V</option><option value="5v">5V 전원 또는 DATA 풀업 5V</option></select></label>
  <button data-check>배선 검사</button><p data-wiremsg role="status"></p>
  <div class="shield"><span class="golem" aria-hidden="true">▣ ▣</span><div><b>센서 오류 골렘</b><p data-shield></p></div></div>
- <h3>2 · 온습도 수신</h3><p>실물은 전원 차단 후 모듈 핀 배열과 전압을 확인하세요. 5V DATA를 GPIO에 직접 연결하지 마세요.</p>
+ <h3>2 · 온습도 수신</h3><p>이번 실물 구성: KS5034 · DHT11 3핀 · VCC → 3V3, DATA → GPIO4, GND → GND. 5V DATA를 GPIO에 직접 연결하지 마세요.</p>
  <label><input type="checkbox" data-safe> 실물의 VCC·GND·DATA 배열, 3.3V 동작 및 DATA 풀업 3.3V를 확인함</label>
  <div><button data-connect>실제 USB 장치 연결</button> <button data-stop>연결 해제</button> <button data-mock>Mock 연습</button></div>
  <p data-link role="status"></p><p data-last>마지막 정상 USB 측정 —</p><output data-reading>온도 — °C · 습도 — %</output>
@@ -40,7 +40,7 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void){
  const controls=(label:string,fn:()=>void)=>{const b=document.createElement('button');b.textContent=label;b.onclick=fn;return b};
  function refresh(){
    const safe=get<HTMLInputElement>('safe').checked;
-   btn('connect').disabled=!navigator.serial||!window.isSecureContext||!safe||!m.wired||!!controller||!!mock||completed();
+   btn('connect').disabled=!navigator.serial||!window.isSecureContext||!safe||!m.wired||!!controller||!!mock;
    btn('stop').disabled=!controller&&!mock;btn('mock').disabled=!!controller||!!mock||!m.wired;
    btn('unlock').disabled=completed()||!m.connected||m.count<3||!m.wired;
    get('shield').textContent=completed()?'방어막 해제 · '+title+(ids.includes(badges.teacher)?' (교사 확인)':''):'방어막 작동 · 실제 정상 측정 '+m.count+' / 3';
@@ -110,7 +110,7 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void){
      const now=Date.now();
      if(now-last>5500)m.receive('serial',null);
      if(v){last=now;get('last').textContent='마지막 정상 USB 측정 · '+new Date(now).toLocaleString('ko-KR')}
-     m.receive('serial',v);get('reading').textContent=v?'실제 USB · '+v.temperature+' °C / '+v.humidity+' %':'측정 실패 · 값 없음';get('link').textContent=!v?'USB 연결됨 · 측정 실패':m.count===3?'USB 연결됨 · 연속 3회 측정 검증 완료':'USB 연결됨 · 정상 측정 '+m.count+' / 3';refresh();
+     m.receive('serial',v);get('reading').textContent=v?'실제 USB · '+v.temperature+' °C / '+v.humidity+' %':'측정 실패 · 값 없음';get('link').textContent=!v?'USB 연결됨 · 측정 실패':m.count===3?'USB 연결됨 · 연속 3회 측정 검증 완료 (장치 검증 완료)':'USB 연결됨 · 정상 측정 '+m.count+' / 3';refresh();
    })}catch(e){end='연결 실패 · '+(e instanceof Error?e.message:String(e))}
    finally{controller=undefined;m.resetConnection();if(d.open){get('link').textContent=c.signal.aborted?'연결 해제':end;get('reading').textContent='온도 — °C · 습도 — %';refresh()}}
  };

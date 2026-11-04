@@ -12,7 +12,8 @@ void loop() {
   delay(2000);
   float humidity = sensor.readHumidity();
   float temperature = sensor.readTemperature();
-  if (isnan(temperature) || isnan(humidity))
+  if (!isfinite(temperature) || temperature < 0 || temperature > 50 ||
+      !isfinite(humidity) || humidity < 0 || humidity > 100)
     Serial.println("{\"type\":\"dht11\",\"temperature\":null,\"humidity\":null,\"valid\":false}");
   else Serial.printf("{\"type\":\"dht11\",\"temperature\":%.1f,\"humidity\":%.1f,\"valid\":true}\n",temperature,humidity);
 }

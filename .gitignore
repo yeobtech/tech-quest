@@ -3,3 +3,4 @@ dist/
 *.log
 package/
 npm-runtime.tgz
+.pio/
