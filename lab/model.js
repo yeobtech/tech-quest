@@ -29,10 +29,10 @@ digital.forEach((pin,i)=>{
   const x=i<6?-4.7+i*2.54:12.6+(i-6)*2.54;
   for(const [j,role] of ['S','V','G'].entries()){
     const z=-19+j*2.54;
-    const name={S:'GPIO'+pin,V:'5V',G:'GND'}[role];
+    const name={S:'GPIO'+pin,V:'3V3',G:'GND'}[role];
     const key=role==='S'?name:name+'@DIGITAL'+pin;
-    contact('DIGITAL · IO'+pin,role,[yellow,red,black][j],x,z,'GPIO '+pin,'5 V');
-    digitalSockets.push({key,name,label:'DIGITAL '+pin+' · '+role+' ('+name+')',position:[x,4.6,z],body:current.objects});
+    contact('DIGITAL · IO'+pin,role,[yellow,red,black][j],x,z,'GPIO '+pin,'3.3 V (가상 설정)');
+    digitalSockets.push({key,name,role,pin,part:current,label:'DIGITAL '+pin+' · '+role+' ('+name+')',position:[x,4.6,z],body:current.objects});
   }
 });
 for(let i=0;i<3;i++){
@@ -139,6 +139,21 @@ for(const socket of digitalSockets){
   if(socket.name==='GND')terminal.material.color.setHex(black);
   for(const mesh of socket.body)mesh.userData.boardSocket=terminal;
 }
+const railLabel=document.createElement('label');
+railLabel.textContent='가상 DIGITAL 빨간 V 전압 ';
+const rail=document.createElement('select');
+rail.add(new Option('3.3 V','3V3'));rail.add(new Option('5 V','5V'));
+railLabel.append(rail);$('levelShift').before(railLabel);
+rail.onchange=()=>{
+  for(const socket of digitalSockets.filter(s=>s.role==='V')){
+    const label='DIGITAL '+socket.pin+' · V ('+rail.value+')';
+    socketNames.set(socket.key,rail.value);socketLabels.set(socket.key,label);
+    socket.part.volts=rail.selectedOptions[0].text+' (가상 설정)';
+    const terminal=freeBoard.find(o=>o.userData.id==='B:'+socket.key);
+    terminal.userData.label=rail.value;terminal.userData.location=label;
+  }
+  refresh();
+};
 const freeTargets=[];
 const partWires=new Map();
 let partPins=[];
