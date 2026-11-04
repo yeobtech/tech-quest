@@ -3,6 +3,7 @@ import { ENEMIES, type EnemyKind } from '../data/config';
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
   hp: number;
   direction = -1;
+  private chargeAt=0;
   private staggerUntil = 0;
   stagger() { this.staggerUntil = this.scene.time.now + 140; this.setTint(0xffaaa0); }
   readonly stats;
@@ -17,16 +18,29 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   }
   tick() {
     if (!this.active) return;
+    if(this.kind==='drill' && ((this.direction<0 && this.x<=this.minX)||(this.direction>0 && this.x>=this.maxX))){
+      this.chargeAt=this.scene.time.now+650;
+    }
     if (this.x <= this.minX) this.direction = 1;
     if (this.x >= this.maxX) this.direction = -1;
     if (this.scene.time.now >= this.staggerUntil) this.clearTint();
-    this.setVelocityX(this.scene.time.now < this.staggerUntil ? 0 : this.stats.speed * this.direction).setFlipX(this.direction > 0);
+    let speed=this.stats.speed;
+    if(this.kind==='drill'){
+      const untilCharge=this.chargeAt-this.scene.time.now;
+      if(untilCharge>0){
+        speed=0;this.setTint(0xffce58);this.label.setText(this.direction>0?'돌진 준비 ▶':'◀ 돌진 준비');
+      }else{
+        if(this.chargeAt && untilCharge>-450)speed=190;
+        this.label.setText(this.stats.name);
+      }
+    }
+    this.setVelocityX(this.scene.time.now < this.staggerUntil ? 0 : speed * this.direction).setFlipX(this.direction > 0);
     if(this.kind==='drone')this.setVelocityY(Math.cos(this.scene.time.now/470)*20);
     this.label.setPosition(this.x, this.y - 42);
     this.bar.clear().fillStyle(0x203b36).fillRect(this.x - 23, this.y - 29, 46, 5).fillStyle(0xb4ee8c).fillRect(this.x - 23, this.y - 29, 46 * this.hp / this.stats.hp, 5);
   }
   die() {
     this.clearTint(); this.disableBody(true, true); this.label.setVisible(false); this.bar.clear();
-    this.scene.time.delayedCall(this.stats.respawn, () => { this.hp = this.stats.hp; this.enableBody(true, this.homeX, this.homeY, true, true); this.label.setVisible(true); });
+    this.scene.time.delayedCall(this.stats.respawn, () => { this.hp = this.stats.hp; this.chargeAt=0; this.enableBody(true, this.homeX, this.homeY, true, true); this.label.setVisible(true); });
   }
 }

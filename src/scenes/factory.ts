@@ -86,10 +86,17 @@ export function buildFactory(s:Phaser.Scene){
   s.physics.add.existing(lift);const body=lift.body as Phaser.Physics.Arcade.Body;
   body.setAllowGravity(false).setImmovable(true).setVelocityX(-ferry.speed);
   body.checkCollision.down=body.checkCollision.left=body.checkCollision.right=false;
-  for(const kind of ['motor','drone'] as const){
+  for(const kind of ['motor','drone','drill'] as const){
     if(s.textures.exists(kind))continue;
     const g=s.add.graphics();
-    if(kind==='motor'){
+    if(kind==='drill'){
+      g.fillStyle(0x232335).fillRect(13,20,25,8);
+      for(let x=15;x<36;x+=7)g.fillStyle(0x817884).fillRect(x,23,4,3);
+      g.fillStyle(0xaa612b).fillRect(14,8,23,14);
+      g.fillStyle(0xffc45b).fillRect(17,5,15,5).fillRect(16,10,5,4);
+      g.fillStyle(0xaabdc8).fillTriangle(0,16,15,10,15,21);
+      g.fillStyle(0x536678).fillRect(8,14,2,5).fillRect(12,12,2,8);
+    }else if(kind==='motor'){
       g.fillStyle(0x211c37).fillRect(3,21,34,7);g.fillStyle(0xce7043).fillRoundedRect(4,5,32,18,3);
       for(let x=8;x<26;x+=5)g.fillStyle(0x904937).fillRect(x,6,2,13);
       g.fillStyle(0xffd367).fillRect(28,10,6,5);
