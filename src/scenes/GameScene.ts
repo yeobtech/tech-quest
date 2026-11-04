@@ -1,3 +1,6 @@
+import {openQuests} from '../ui/QuestBoard';
+import {quests,ready} from '../data/quests';
+const BOARD_X=675;
 import {rollDrops,materials,type MaterialId} from '../data/materials';
 import {openInventory} from '../ui/Inventory';
 import Phaser from 'phaser';
@@ -66,7 +69,7 @@ export class GameScene extends Phaser.Scene {
       if (enemy.active) this.receiveDamage(enemy.stats.damage);
     }); });
     this.combat = new CombatSystem(this);
-    this.keys = this.input.keyboard!.addKeys('A,D,LEFT,RIGHT,SPACE,Z,X,E,UP,W,DOWN,S,SHIFT,I') as Record<string, Phaser.Input.Keyboard.Key>;
+    this.keys = this.input.keyboard!.addKeys('A,D,LEFT,RIGHT,SPACE,Z,X,E,UP,W,DOWN,S,SHIFT,I,Q') as Record<string, Phaser.Input.Keyboard.Key>;
     this.input.keyboard!.addCapture(['SPACE', 'LEFT', 'RIGHT', 'UP', 'DOWN']);
     this.cameras.main.setBounds(0, 0, this.map.width, 720).startFollow(this.player, true, 0.09, 0.09);
     this.game.canvas.setAttribute('tabindex', '0'); this.game.canvas.setAttribute('aria-label', 'TECH QUEST 게임. A D 이동, Space 점프, Z 공격, X 발판 측정');
@@ -75,6 +78,9 @@ export class GameScene extends Phaser.Scene {
   }
   update() {
     if (!this.player) return;
+    if(Phaser.Input.Keyboard.JustDown(this.keys.Q) && !document.querySelector('dialog[open]')){
+      this.questBoard();return;
+    }
     if(Phaser.Input.Keyboard.JustDown(this.keys.I) && !document.querySelector('dialog[open]')){
       this.scene.pause();this.input.keyboard!.enabled=false;
       openInventory(this.progress.state.inventory,()=>{
@@ -91,6 +97,7 @@ export class GameScene extends Phaser.Scene {
     else if (this.player.hp && interact) {
       if (this.map === VILLAGE) {
         if (Math.abs(this.player.x - VILLAGE.spawn.x) < 60) this.travel(FOREST);
+        else if(Math.abs(this.player.x-BOARD_X)<65){this.questBoard();return}
         else {
           const npc = VILLAGERS.find(npc => Math.abs(this.player.x - npc.x) < 70 && Math.abs(this.player.y - 602) < 65);
           if (npc) {
@@ -118,11 +125,16 @@ export class GameScene extends Phaser.Scene {
     this.enemies.forEach(e => e.tick());
     this.coordinates?.setText(`x ${Math.round(this.player.x)}  y ${Math.round(this.player.y)}`);
     if (this.keys.Z.isDown) this.combat.attack(this.player, this.enemies, this.progress.attack, enemy => {
+      const q=quests.find(q=>q.id===enemy.kind)!;
+      const wasReady=ready(this.progress.state,q);
+      const kills=this.progress.state.journal[q.id];
+      if(typeof kills==='number')this.progress.state.journal[q.id]=Math.min(q.target,kills+1);
       this.dropLoot(enemy);
       const levels = this.progress.reward(enemy.stats.exp, enemy.stats.gold);
       this.combat.float(enemy.x, enemy.y - 70, `+${enemy.stats.exp} EXP · +${enemy.stats.gold} G`);
       if (levels) { this.player.hp = this.progress.maxHp; this.combat.float(this.player.x, this.player.y - 80, 'LEVEL UP!', '#f3d98b'); this.hud.notice(`레벨 ${this.progress.state.level} 달성! 체력과 공격력이 올랐습니다.`); }
       else this.hud.notice(`${enemy.stats.name} 처치 · 경험치 +${enemy.stats.exp}, 골드 +${enemy.stats.gold}`);
+      if(!wasReady && ready(this.progress.state,q))this.hud.notice('목표 달성 · '+q.name+' (Q: 보상 수령)');
       this.hud.saveStatus(this.save.save(this.progress.state)); this.refresh();
     },this.progress.state.tool);
   }
@@ -137,6 +149,8 @@ export class GameScene extends Phaser.Scene {
     });
   }
   private collectLoot(){
+    const collection=quests.find(q=>q.id==='gear')!;
+    const wasReady=ready(this.progress.state,collection);
     const picked:string[]=[];
     for(const [sprite,id] of this.loot){
       if(Math.hypot(sprite.x-this.player.x,sprite.y-12-this.player.y)>52)continue;
@@ -147,7 +161,7 @@ export class GameScene extends Phaser.Scene {
       if(!count)this.combat.float(this.player.x,this.player.y-55-picked.length*22,'✦ 새 재료 · '+materials[id].name,'#ffe099');
     }
     if(picked.length){
-      this.hud.notice('획득 · '+picked.join(', ')+'  (I: 재료 가방)');
+      this.hud.notice('획득 · '+picked.join(', ')+(!wasReady&&ready(this.progress.state,collection)?' · 수집 목표 달성 (Q: 보상 수령)':'  (I: 재료 가방)'));
       this.hud.saveStatus(this.save.save(this.progress.state));
     }
   }
@@ -218,6 +232,7 @@ export class GameScene extends Phaser.Scene {
     }
     if (!this.finished && near(YARD.exit)) {
       this.finished = true;
+      if(!this.progress.state.achieved.includes('yard'))this.progress.state.achieved.push('yard');
       this.progress.reward(15, 5, false);
       this.hud.saveStatus(this.save.save(this.progress.state));
       this.travel(FOREST, '훈련장 클리어! 경험치 +15 · 골드 +5');
@@ -281,7 +296,20 @@ export class GameScene extends Phaser.Scene {
     this.add.graphics().lineStyle(5, 0x78e7cc).strokeRoundedRect(x - 18, 564, 36, 66, 12);
     this.add.text(x, 560, name + ' · E', { fontSize: '14px', backgroundColor: '#254541' }).setOrigin(0.5, 1);
   }
+  private questBoard(){
+    this.scene.pause();this.input.keyboard!.enabled=false;
+    const atBoard=this.map===VILLAGE && Math.abs(this.player.x-BOARD_X)<65;
+    openQuests(this.progress,atBoard,state=>{
+      const ok=this.save.save(state);this.hud.saveStatus(ok);return ok;
+    },()=>{
+      this.input.keyboard!.resetKeys();this.input.keyboard!.enabled=true;
+      this.scene.resume();this.game.canvas.focus();this.refresh();
+    });
+  }
   private drawVillage() {
+    this.add.rectangle(BOARD_X,599,10,62,0x69462b);
+    this.add.rectangle(BOARD_X,566,128,52,0x493323).setStrokeStyle(4,0xbe9664);
+    this.add.text(BOARD_X,566,'퀘스트 게시판 · E',{fontSize:'14px',color:'#ffe6a7'}).setOrigin(.5);
     this.cameras.main.setBackgroundColor('#b7d9cc');
     const g = this.add.graphics();
     g.fillStyle(0x667565).fillRect(0, 630, this.map.width, 90);
