@@ -6,11 +6,13 @@ import {purchase,equip,readWardrobe} from '../src/data/shop.ts';
 test('craft only unlocks on successful save and consumes each ingredient exactly once',()=>{
   const p=newProgress(),r=recipes[0];p.gold=999;p.tool='nippers';
   assert.equal(purchase(p,r.result),false);
-  p.inventory.jelly=2;
-  assert.equal(craft(p,r,()=>assert.fail()),'missing');
-  p.inventory.gear=1;
+  for(const inventory of [{jelly:9,gear:10},{jelly:10,gear:9}]){
+    p.inventory=inventory;
+    assert.equal(craft(p,r,()=>assert.fail()),'missing');
+  }
+  p.inventory={jelly:11,gear:10};
   assert.equal(craft(p,r,()=>false),'failed');
-  assert.deepEqual(p.inventory,{jelly:2,gear:1});assert.ok(!p.wardrobe.owned.includes(r.result));
+  assert.deepEqual(p.inventory,{jelly:11,gear:10});assert.ok(!p.wardrobe.owned.includes(r.result));
   let writes=0;
   assert.equal(craft(p,r,next=>{writes++;return next.wardrobe.owned.includes(r.result)&&!next.inventory.gear}),'crafted');
   assert.equal(craft(p,r,()=>assert.fail()),'owned');assert.equal(writes,1);

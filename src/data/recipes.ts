@@ -7,7 +7,7 @@ export interface Recipe {
   ingredients:Partial<Record<MaterialId,number>>;
 }
 export const recipes:readonly Recipe[]=[
-  {id:'gear-scissors',result:'gear-scissors',ingredients:{jelly:1,gear:1}}
+  {id:'gear-scissors',result:'gear-scissors',ingredients:{jelly:10,gear:10}}
 ];
 export function ingredients(recipe:Recipe){
   return Object.entries(recipe.ingredients) as [MaterialId,number][];
