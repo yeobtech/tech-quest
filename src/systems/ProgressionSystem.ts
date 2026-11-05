@@ -1,3 +1,5 @@
+import {virusConfig} from '../education/virus';
+import {bossReady} from '../education/stage1';
 import {newStage1,type Stage1Progress} from '../education/stage1';
 import {factoryReward} from '../data/factory';
 import {ready,type Journal,type Quest} from '../data/quests';
@@ -22,6 +24,13 @@ export class ProgressionSystem {
     Object.assign(this.state,next);
     return claim?'claimed':'accepted';
   }
+  clearDigital(save:(next:Progress)=>boolean){
+    if(this.state.stage1.bossCleared)return 'repeat';
+    if(!bossReady(this.state.stage1))return 'blocked';
+    const next={...this.state,stage1:{...this.state.stage1,bossCleared:true}};
+    new ProgressionSystem(next).reward(virusConfig.exp,virusConfig.gold,false);
+    if(!save(next))return 'failed';Object.assign(this.state,next);return 'first';
+  }
   clearFactory(save:(next:Progress)=>boolean){
     if(this.state.factoryCleared)return 'repeat';
     const next={...this.state,factoryCleared:true};
@@ -39,4 +48,3 @@ export class ProgressionSystem {
     return levels;
   }
 }
-

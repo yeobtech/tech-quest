@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { ENEMIES, type EnemyKind } from '../data/config';
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
+  canReceiveDamage(){return true}
   hp: number;
   direction = -1;
   private chargeAt=0;

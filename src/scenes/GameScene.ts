@@ -1,3 +1,7 @@
+import {DIGITAL_ARENA,VirusChallenge,virusConfig} from '../education/virus';
+import {bossReady} from '../education/stage1';
+import {Virus} from '../entities/Virus';
+import {openVirusQuiz} from '../ui/VirusQuiz';
 import {FACTORY,factoryLadders,factoryGate,traps,switchX,exitX,floorY,checkpoint,factoryReward} from '../data/factory';
 import {buildFactory} from './factory';
 import {openCrafting} from '../ui/Crafting';
@@ -21,6 +25,10 @@ import { openShop } from '../ui/ClothingShop';
 import { openToolBench } from '../ui/ToolBench';
 import { createTextures } from './textures';
 export class GameScene extends Phaser.Scene {
+  private combatElapsed=0;
+  private virus?:Virus;
+  private challenge?:VirusChallenge;
+  private virusStatus?:Phaser.GameObjects.Text;
   private map: MapData = FOREST;
   private chest?: Phaser.GameObjects.Container;
   private chestPrompt?: Phaser.GameObjects.Text;
@@ -40,6 +48,7 @@ export class GameScene extends Phaser.Scene {
   constructor(private hud: Hud) { super('forest'); }
   preload() { preloadApprentice(this); }
   create(data: { map?: MapData; hp?: number; message?: string } = {}) {
+    this.combatElapsed=0;this.virus=undefined;this.challenge=undefined;this.virusStatus=undefined;
     this.loot.clear();
     this.map = data.map ?? FOREST;
     this.finished = false; this.climbing = undefined; this.chest = undefined; this.chestPrompt = undefined; this.measurement = undefined;
@@ -52,11 +61,12 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, this.map.width, this.map.height??720);
     this.factory=this.map===FACTORY?buildFactory(this):undefined;
     if(this.factory)this.hud.notice('1층 공장 입구');
+    else if (this.map === DIGITAL_ARENA) this.drawDigital();
     else if (this.map === TRAINING) this.drawTraining();
     else if (this.map === VILLAGE) this.drawVillage();
     else this.drawForest();
     this.hud.location(this.map);
-    this.hud.notice(data.message ?? (this.factory?'주황 사다리로 등반 · 5층 차단기를 찾으세요.':this.map === VILLAGE ? '마을 주민 가까이에서 E로 대화하세요.' : this.map === TRAINING ? '훈련 시작! 오른쪽 출구로 이동하세요.' : '훈련장 입구에서 E를 누르세요.'));
+    this.hud.notice(data.message ?? (this.map===DIGITAL_ARENA?'E로 복구 퀴즈를 풀어 방어막을 해제하세요.':this.factory?'주황 사다리로 등반 · 5층 차단기를 찾으세요.':this.map === VILLAGE ? '마을 주민 가까이에서 E로 대화하세요.' : this.map === TRAINING ? '훈련 시작! 오른쪽 출구로 이동하세요.' : '훈련장 입구에서 E를 누르세요.'));
     if (this.physics.world.drawDebug) this.coordinates = this.add.text(12, 190, '', { backgroundColor: '#142d27' }).setScrollFactor(0).setDepth(100);
     const platforms = this.physics.add.staticGroup();
     this.map.platforms.forEach((p, index) => {
@@ -73,18 +83,20 @@ export class GameScene extends Phaser.Scene {
     });
     if(this.factory)this.physics.add.collider(this.player,this.factory.lift);
     this.enemies = this.map.enemies.map(e => new Enemy(this, e.kind, e.x, e.min, e.max,e.y));
+    if(this.map===DIGITAL_ARENA){this.challenge=new VirusChallenge();this.virus=new Virus(this,this.challenge);this.enemies.push(this.virus)}
     this.enemies.forEach(enemy => { this.physics.add.collider(enemy, platforms); this.physics.add.overlap(this.player, enemy, () => {
       if (enemy.active) this.receiveDamage(enemy.stats.damage);
     }); });
     this.combat = new CombatSystem(this);
-    this.keys = this.input.keyboard!.addKeys('A,D,LEFT,RIGHT,SPACE,Z,X,E,UP,W,DOWN,S,SHIFT,I,Q') as Record<string, Phaser.Input.Keyboard.Key>;
+    this.keys = this.input.keyboard!.addKeys('A,D,LEFT,RIGHT,SPACE,Z,X,E,UP,W,DOWN,S,SHIFT,I,Q,B') as Record<string, Phaser.Input.Keyboard.Key>;
     this.input.keyboard!.addCapture(['SPACE', 'LEFT', 'RIGHT', 'UP', 'DOWN']);
     this.cameras.main.setBounds(0, 0, this.map.width, this.map.height??720).startFollow(this.player, true, 0.09, 0.09);
     this.game.canvas.setAttribute('tabindex', '0'); this.game.canvas.setAttribute('aria-label', 'TECH QUEST 게임. A D 이동, Space 점프, Z 공격, X 발판 측정');
     this.input.on('pointerdown', () => this.game.canvas.focus());
     this.refresh(); this.hud.saveStatus(this.save.save(this.progress.state));
   }
-  update() {
+  update(_time:number,delta:number) {
+    this.combatElapsed+=delta;
     if (!this.player) return;
     if(Phaser.Input.Keyboard.JustDown(this.keys.Q) && !document.querySelector('dialog[open]')){
       this.questBoard();return;
@@ -101,6 +113,12 @@ export class GameScene extends Phaser.Scene {
     this.player.move(this.keys.A.isDown || this.keys.LEFT.isDown, this.keys.D.isDown || this.keys.RIGHT.isDown, Phaser.Input.Keyboard.JustDown(this.keys.SPACE), !!this.climbing, this.keys.SHIFT.isDown);
     if (Phaser.Input.Keyboard.JustDown(this.keys.X)) this.measurePlatform();
     const interact = Phaser.Input.Keyboard.JustDown(this.keys.E);
+    if(this.map===DIGITAL_ARENA){
+      const c=this.challenge!;
+      this.virusStatus?.setText((c.shielded?'◇ 방어막 활성 · 핵심 문제 필요':'✓ 방어막 해제')+' · '+(c.multiplier(this.combatElapsed)>1?'공격 +50% '+Math.ceil((c.buffUntil-this.combatElapsed)/1000)+'초':'기본 공격력')+'\nE: 복구 퀴즈 / 처치 후 보상 · B: 마을로 복귀');
+      if(Phaser.Input.Keyboard.JustDown(this.keys.B)){this.travel(VILLAGE);return}
+      if(interact){if(this.virus&&!this.virus.active)this.finishDigital();else this.virusQuiz();return}
+    }
     if(this.factory){
       this.factory.tick();
       if(this.player.hp){
@@ -153,7 +171,7 @@ export class GameScene extends Phaser.Scene {
               const ok=this.save.save(this.progress.state); this.hud.saveStatus(ok); return ok;
             };
             if(npc.shop) openShop(this.progress.state,persist,()=>this.applyEquipment(),(w,a,t)=>preview(this,w,a,t),()=>{this.refresh();done()});
-            else if(npc.instructor) openToolBench(this.progress.state,npc.speech,persist,()=>this.applyEquipment(),()=>{this.refresh();done()},next=>this.save.save(next));
+            else if(npc.instructor) openToolBench(this.progress.state,npc.speech,persist,()=>this.applyEquipment(),()=>{this.refresh();done()},next=>this.save.save(next),()=>{if(bossReady(this.progress.state.stage1))this.travel(DIGITAL_ARENA)});
             else this.hud.talk(npc,done);
             return;
           }
@@ -164,6 +182,7 @@ export class GameScene extends Phaser.Scene {
     this.enemies.forEach(e => e.tick());
     this.coordinates?.setText(`x ${Math.round(this.player.x)}  y ${Math.round(this.player.y)}`);
     if (this.keys.Z.isDown) this.combat.attack(this.player, this.enemies, this.progress.attack, enemy => {
+      if(enemy===this.virus){this.finishDigital();return}
       const q=quests.find(q=>q.id===enemy.kind);
       const wasReady=q && ready(this.progress.state,q);
       const kills=q && this.progress.state.journal[q.id];
@@ -175,7 +194,25 @@ export class GameScene extends Phaser.Scene {
       else this.hud.notice(`${enemy.stats.name} 처치 · 경험치 +${enemy.stats.exp}, 골드 +${enemy.stats.gold}`);
       if(q && !wasReady && ready(this.progress.state,q))this.hud.notice('목표 달성 · '+q.name+' (Q: 보상 수령)');
       this.hud.saveStatus(this.save.save(this.progress.state)); this.refresh();
-    },this.progress.state.tool);
+    },this.progress.state.tool,()=>this.challenge?.multiplier(this.combatElapsed)??1);
+  }
+  private virusQuiz(){
+    if(!this.player.hp || document.querySelector('dialog[open]'))return;
+    this.player.setVelocity(0).setAccelerationX(0);this.scene.pause();this.input.keyboard!.enabled=false;
+    openVirusQuiz(this.challenge!,()=>this.combatElapsed,()=>{this.input.keyboard!.resetKeys();this.input.keyboard!.enabled=true;this.scene.resume();this.game.canvas.focus()});
+  }
+  private finishDigital(){
+    const result=this.progress.clearDigital(next=>this.save.save(next));
+    if(result==='failed'){this.hud.notice('보상 저장 실패 · E로 다시 저장하세요.');return}
+    this.refresh();this.hud.notice(result==='first'?`오류 바이러스 복구! ${virusConfig.title} · EXP +${virusConfig.exp} · ${virusConfig.gold}G · 스테이지 2 해금 (준비 중). B: 마을`:'복구 완료 · 최초 보상은 이미 받았습니다. B: 마을');
+  }
+  private drawDigital(){
+    this.cameras.main.setBackgroundColor('#20213b');const g=this.add.graphics();
+    for(let x=0;x<1280;x+=64)g.lineStyle(1,0x343e59).lineBetween(x,200,x,630);
+    g.fillStyle(0x477c82).fillRect(0,630,1280,90).fillStyle(0xb4ebd1).fillRect(0,630,1280,6);
+    this.add.text(640,260,'디지털 기술자 훈련소 · 시스템 복구실',{fontSize:'26px',color:'#e4e3ff'}).setOrigin(.5);
+    this.virusStatus=this.add.text(640,330,'',{fontSize:'20px',color:'#ffe5ac',align:'center',backgroundColor:'#27273c'}).setOrigin(.5).setDepth(20);
+    this.add.text(640,410,'E · 핵심 문제와 보너스 / Z · 공격 / B · 마을',{fontSize:'19px',color:'#a9eaff'}).setOrigin(.5).setInteractive({useHandCursor:true}).on('pointerdown',()=>{if(this.virus?.active)this.virusQuiz()});
   }
   private dropLoot(enemy:Enemy){
     rollDrops(enemy.kind).forEach((id,index)=>{
@@ -211,6 +248,7 @@ export class GameScene extends Phaser.Scene {
         this.climbing = undefined;
         this.player.setVelocity(0).setAccelerationX(0);
         this.time.delayedCall(650, () => {
+          if(this.map===DIGITAL_ARENA){this.scene.restart({map:DIGITAL_ARENA,message:'다시 도전 · 방어막과 보너스가 초기화되었습니다.'});return}
           const spawn=this.factory?.checkpointActive?{x:checkpoint.x,y:checkpoint.y-32}:this.map.spawn;
           (this.player.body as Phaser.Physics.Arcade.Body).reset(spawn.x,spawn.y);
           this.player.hp = this.progress.maxHp; this.refresh();
@@ -413,5 +451,3 @@ export class GameScene extends Phaser.Scene {
     this.add.text(110, 536, 'E · 기술자 훈련장 입장', { fontSize: '17px', color: '#f0e6c2', backgroundColor: '#456457', padding: { x: 12, y: 10 } });
   }
 }
-
-

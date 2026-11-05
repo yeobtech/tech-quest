@@ -34,7 +34,7 @@ export function openToolBench(state:Progress, greeting:string, save:()=>boolean,
   }
     const studyButton=document.createElement('button');studyButton.textContent='스테이지 1 · 디지털 기술자 훈련소';
   panel.querySelector('[data-close]')!.before(studyButton);
-  studyButton.onclick=()=>openLearning(state,studySave??(()=>false),()=>{},boss?()=>{panel.close();boss()}:undefined);
+  studyButton.onclick=()=>openLearning(state,studySave??(()=>false),()=>{},boss?()=>{panel.addEventListener('close',boss,{once:true});panel.close()}:undefined);
   const mission=document.createElement('button');mission.textContent='교관 의뢰 · 고장 난 온습도 관측소';
   panel.querySelector('[data-close]')!.before(mission);
   mission.onclick=async()=>{mission.disabled=true;try{
@@ -45,4 +45,3 @@ export function openToolBench(state:Progress, greeting:string, save:()=>boolean,
   panel.addEventListener('close',()=>{panel.remove();done()},{once:true});
   document.body.append(panel);render();panel.showModal();
 }
-

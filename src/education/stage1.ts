@@ -1,6 +1,6 @@
 import {lessons} from './stage1Data';
 import type {Progress} from '../systems/ProgressionSystem';
-export interface ActivityRecord {text:string; submittedAt:string; selfReported:boolean; review?:{id:string;teacherId:string;approvedAt:string}}
+export interface ActivityRecord {text:string; submittedAt:string; selfReported:boolean; review?:{id:string;teacherId:string;approvedAt:string;verification:'verified'|'pending'}}
 export interface Stage1Progress {accepted:boolean; solved:string[]; activities:Record<string,ActivityRecord>; bossCleared:boolean}
 export const newStage1=():Stage1Progress=>({accepted:false,solved:[],activities:{},bossCleared:false});
 export const knowledgeDone=(s:Stage1Progress,level:number)=>lessons[level-1]?.questions.every(q=>s.solved.includes(q.id))??false;
@@ -13,8 +13,9 @@ export function readStage1(raw:any):Stage1Progress {
  for(const l of lessons){
   for(const q of l.questions)if(Array.isArray(raw?.solved)&&raw.solved.includes(q.id))s.solved.push(q.id);
   const a=raw?.activities?.[l.level];
-  if(knowledgeDone(s,l.level)&&typeof a?.text==='string'&&a.text.trim().length>=10&&a.text.length<=2000&&typeof a.submittedAt==='string')s.activities[l.level]={text:a.text,submittedAt:a.submittedAt,selfReported:a.selfReported===true};
-  // Local storage never authenticates a teacher. Reviews must be re-verified by the external adapter.
+  if(knowledgeDone(s,l.level)&&typeof a?.text==='string'&&a.text.trim().length>=10&&a.text.length<=2000&&typeof a.submittedAt==='string'&&Number.isFinite(Date.parse(a.submittedAt)))s.activities[l.level]={text:a.text,submittedAt:a.submittedAt,selfReported:a.selfReported===true};
+    // Preserve receipt history, but never trust local storage as teacher authentication.
+  if(s.activities[l.level] && typeof a?.review?.id==='string' && typeof a.review.teacherId==='string' && typeof a.review.approvedAt==='string')s.activities[l.level].review={id:a.review.id,teacherId:a.review.teacherId,approvedAt:a.review.approvedAt,verification:'pending'};
   if(!lessonDone(s,l.level))break;
  }
  s.bossCleared=bossReady(s)&&raw?.bossCleared===true;return s;
