@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {newProgress,ProgressionSystem,type Progress} from '../src/systems/ProgressionSystem.ts';
 import {SaveSystem} from '../src/systems/SaveSystem.ts';
-import {takeExam,examLesson,examEligible,readExam} from '../src/education/promotion.ts';
+import {ExamPrompt,takeExam,examLesson,examEligible,readExam} from '../src/education/promotion.ts';
 import {study,knowledgeDone,learningLevel,bossReady} from '../src/education/stage1.ts';
 import {requiredExp} from '../src/data/config.ts';
 import {quests} from '../src/data/quests.ts';
@@ -54,4 +54,13 @@ test('real storage exception during final answer keeps prior answer and replay c
  const p=newProgress();new ProgressionSystem(p).reward(100,0,false);let text='';let fail=false;const saves=new SaveSystem({getItem:()=>text,setItem:(_,v)=>{if(fail)throw new Error('quota');text=v}});
  answer(p,0,n=>saves.save(n));fail=true;assert.equal(answer(p,1,n=>saves.save(n)),'failed');assert.equal(saves.load().level,1);assert.equal(p.exam?.solved.length,1);
  fail=false;assert.equal(answer(p,1,n=>saves.save(n)),'promoted');assert.equal(saves.load().level,2);assert.equal(answer(p,1,n=>saves.save(n)),'blocked');
+});
+
+test('automatic exam waits for an available game, opens once, and re-arms only after abandon or level change',()=>{
+ const prompt=new ExamPrompt(),p=newProgress();assert.equal(prompt.shouldOpen(p,true),false);
+ p.exp=requiredExp(1);assert.equal(prompt.shouldOpen(p,false),false);assert.equal(prompt.shouldOpen(p,true),true);
+ prompt.opened(1);assert.equal(prompt.shouldOpen(p,true),false);assert.equal(prompt.shouldOpen(p,false),false);assert.equal(prompt.shouldOpen(p,true),false);
+ p.exp=0;assert.equal(prompt.shouldOpen(p,true),false);p.exp=requiredExp(1);assert.equal(prompt.shouldOpen(p,true),true);
+ prompt.opened(1);p.level=2;p.exp=requiredExp(2);assert.equal(prompt.shouldOpen(p,true),true);prompt.opened(2);assert.equal(prompt.shouldOpen(p,true),false);
+ assert.equal(new ExamPrompt().shouldOpen(p,true),true); // Reload resumes pending exam.
 });

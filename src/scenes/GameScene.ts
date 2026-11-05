@@ -1,6 +1,6 @@
 import {openCertification} from '../ui/Certification';
 import {openPromotion} from '../ui/PromotionExam';
-import {examEligible} from '../education/promotion';
+import {examEligible,ExamPrompt} from '../education/promotion';
 import {DIGITAL_ARENA,VirusChallenge,virusConfig} from '../education/virus';
 import {bossReady} from '../education/stage1';
 import {Virus} from '../entities/Virus';
@@ -28,6 +28,7 @@ import { openShop } from '../ui/ClothingShop';
 import { openToolBench } from '../ui/ToolBench';
 import { createTextures } from './textures';
 export class GameScene extends Phaser.Scene {
+  private examPrompt=new ExamPrompt();
   private combatElapsed=0;
   private virus?:Virus;
   private challenge?:VirusChallenge;
@@ -100,8 +101,9 @@ export class GameScene extends Phaser.Scene {
     this.refresh(); this.hud.saveStatus(this.save.save(this.progress.state));
   }
   update(_time:number,delta:number) {
-    this.combatElapsed+=delta;
     if (!this.player) return;
+    if(this.examPrompt.shouldOpen(this.progress.state,!!this.player.hp&&!document.querySelector('dialog[open]'))){this.promotionExam();return}
+    this.combatElapsed+=delta;
     if(Phaser.Input.Keyboard.JustDown(this.keys.Q) && !document.querySelector('dialog[open]')){
       this.questBoard();return;
     }
@@ -201,6 +203,7 @@ export class GameScene extends Phaser.Scene {
   }
   private promotionExam(){
     if(!this.scene.isActive()||!this.player.hp||!examEligible(this.progress.state)||document.querySelector('dialog[open]'))return;
+    this.examPrompt.opened(this.progress.state.level);
     this.player.setVelocity(0).setAccelerationX(0);this.scene.pause();this.input.keyboard!.enabled=false;
     let leveled=false;
     openPromotion(this.progress.state,next=>{const ok=this.save.save(next);this.hud.saveStatus(ok);return ok},()=>{

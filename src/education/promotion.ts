@@ -60,3 +60,13 @@ export function takeExam(p:Progress,a:ExamAction,save:(p:Progress)=>boolean):Exa
  if(result==='saved')recordExam(next);
  if(!save(next))return 'failed';Object.assign(p,next);return result;
 }
+
+// Session-only prompt latch: closing is not abandonment; map changes keep the latch.
+export class ExamPrompt {
+ private openedLevel:number|undefined;
+ shouldOpen(p:Pick<Progress,'level'|'exp'>,available:boolean){
+  if(!examEligible(p)){this.openedLevel=undefined;return false}
+  return available&&this.openedLevel!==p.level;
+ }
+ opened(level:number){this.openedLevel=level}
+}
