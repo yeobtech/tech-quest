@@ -10,8 +10,8 @@ import { PLAYER } from '../data/config';
 import { readWardrobe, type Wardrobe } from '../data/shop';
 import type { LearningProgress } from '../education/types';
 import type { ActiveTool } from '../data/tools';
-export interface Progress { certification:CertificationProgress; exam:PromotionExam|null; stage1:Stage1Progress; factoryCleared:boolean; journal:Journal; achieved:string[]; inventory:Inventory; level: number; exp: number; gold: number; kills: number; learning: LearningProgress; wardrobe: Wardrobe; tool:ActiveTool }
-export const newProgress = (): Progress => ({ certification:newCertification(), exam:null, stage1:newStage1(), factoryCleared:false, journal:{}, achieved:[], inventory:{}, level: 1, exp: 0, gold: 0, kills: 0, tool:'scissors', wardrobe:readWardrobe(), learning: { rank: '입문', completedMissionIds: [] } });
+export interface Progress { examHistory:string[]; certification:CertificationProgress; exam:PromotionExam|null; stage1:Stage1Progress; factoryCleared:boolean; journal:Journal; achieved:string[]; inventory:Inventory; level: number; exp: number; gold: number; kills: number; learning: LearningProgress; wardrobe: Wardrobe; tool:ActiveTool }
+export const newProgress = (): Progress => ({ examHistory:[], certification:newCertification(), exam:null, stage1:newStage1(), factoryCleared:false, journal:{}, achieved:[], inventory:{}, level: 1, exp: 0, gold: 0, kills: 0, tool:'scissors', wardrobe:readWardrobe(), learning: { rank: '입문', completedMissionIds: [] } });
 export class ProgressionSystem {
   constructor(public state: Progress) {}
   questAction(q:Quest,atBoard:boolean,save:(next:Progress)=>boolean){

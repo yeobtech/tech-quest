@@ -1,3 +1,4 @@
+import {openStage2Practice} from './Stage2Practice';
 import {openCertification} from './Certification';
 import {helperResource} from '../education/teacherReview';
 import {lessons,shuffle} from '../education/stage1Data';
@@ -15,7 +16,8 @@ export function openLearning(p:Progress,save:(p:Progress)=>boolean,done:()=>void
   d.querySelector('[data-summary]')!.textContent=`게임 Lv.${p.level} · 학습 Lv.${learningLevel(s)}/10 · 기술 등급 ${p.learning.rank} (게임 승급과 실제 수행은 별도)`;
   const nav=d.querySelector('nav')!;nav.replaceChildren();for(const item of lessons){const b=button(nav,`Lv.${item.level} ${item.title} ${lessonDone(s,item.level)?'✓ 제출 완료':''}`,()=>{level=item.level;status.textContent='';render()});b.disabled=item.level>learningLevel(s);b.setAttribute('aria-current',String(level===item.level))}
     area.replaceChildren();
-  if(s.bossCleared){const result=document.createElement('p');result.textContent='칭호: 디지털 기술자 · 스테이지 2 입장 권한 획득. 다음 학습: ESP32-S3 피지컬 컴퓨팅 입문 — KS5034, GPIO·전원, 3D 배선, DHT11, 초음파, 입력·처리·출력과 문제 해결 프로젝트. 새 스테이지 2 콘텐츠는 준비 중이며 기존 관측소·배선실은 계속 사용할 수 있습니다.';area.append(result);button(area,'디지털 기술자 실습 인증',()=>openCertification(p,save,()=>{}))}
+  button(area,'스테이지 2 개념 연습 · EXP 불필요',openStage2Practice);
+  if(s.bossCleared){const result=document.createElement('p');result.textContent='칭호: 디지털 기술자 · 스테이지 2 입장 권한 획득. 다음 학습: ESP32-S3 피지컬 컴퓨팅 입문 — KS5034, GPIO·전원, 3D 배선, DHT11, 초음파, 입력·처리·출력과 문제 해결 프로젝트. 스테이지 2 개념 연습과 기존 관측소·배선실을 이용할 수 있습니다. 실제 수행 인증은 별도입니다.';area.append(result);button(area,'디지털 기술자 실습 인증',()=>openCertification(p,save,()=>{}))}
   if(!s.accepted){button(area,'교관 미션 수락',()=>{status.textContent=study(p,{kind:'accept'},save)==='saved'?'미션을 수락했습니다.':'저장 실패 · 다시 시도하세요.';render()});return}
   const h=document.createElement('h3');h.textContent=`학습 Lv.${level} · ${l.title}`;area.append(h);
     if(level>=5&&level<=7){const link=document.createElement('a');link.href=helperResource.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Surface Go 3 Helper · 증상별 단계 안내 (새 창)';area.append(link);const safe=document.createElement('p');safe.textContent='증상 분류: '+helperResource.categories.join(', ')+'. 도움말은 읽기·원인 추정에 활용하세요. 초기화·삭제·시스템 설정 변경은 실행하지 말고 교사에게 요청하세요.';area.append(safe)}
