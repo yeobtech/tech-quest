@@ -1,3 +1,4 @@
+import {readMeasurement,MeasurementRun,type MeasurementEvidence} from './measurement2';
 import {wiringError,type Wires,type Profile} from '../observatory/wiring';
 import type {Progress} from '../systems/ProgressionSystem';
 import type {PracticalEvidence,CertificationReceipt} from './certificationData';
@@ -15,16 +16,16 @@ export const jumperTasks=[
  {id:'safe',prompt:'5V Echo를 ESP32-S3 GPIO에 직접 연결하려 합니다.',answer:'중지하고 적절한 3.3V 레벨 변환 확인',choices:['중지하고 적절한 3.3V 레벨 변환 확인','직접 꽂아서 시험'],hint:'5V 신호 직결은 위험합니다. 배선 변경 전 전원을 분리하세요.'}
 ];
 export interface LabSubmission {id:string;revision:number;submittedAt:string;notes:LabNotes}
-export interface LabRecord {started:boolean;draft:LabNotes;wiring:Wires|null;findings:Partial<Record<Finding,string>>;jumpers:string[];virtualAt:string|null;submission:LabSubmission|null;receipt:CertificationReceipt|null}
+export interface LabRecord {started:boolean;knowledgePassedAt:string|null;draft:LabNotes;measurement:MeasurementEvidence|null;wiring:Wires|null;findings:Partial<Record<Finding,string>>;jumpers:string[];virtualAt:string|null;submission:LabSubmission|null;receipt:CertificationReceipt|null}
 export type Practical2=Record<MissionLevel,LabRecord>;
 export const newNotes=():LabNotes=>({task:'',result:'',problem:'',cause:'',solution:'',improvement:''});
-export function newPractical2():Practical2{return Object.fromEntries(missionLevels.map(l=>[l,{started:false,draft:newNotes(),wiring:null,findings:{},jumpers:[],virtualAt:null,submission:null,receipt:null}])) as unknown as Practical2}
+export function newPractical2():Practical2{return Object.fromEntries(missionLevels.map(l=>[l,{started:false,knowledgePassedAt:null,draft:newNotes(),measurement:null,wiring:null,findings:{},jumpers:[],virtualAt:null,submission:null,receipt:null}])) as unknown as Practical2}
 const date=(v:unknown):v is string=>typeof v==='string'&&Number.isFinite(Date.parse(v));
 export function readNotes(raw:unknown):LabNotes{const n=newNotes(),r=raw as Partial<LabNotes>|null;for(const k of Object.keys(n) as (keyof LabNotes)[])n[k]=typeof r?.[k]==='string'?r[k]!.slice(0,2000):'';return n}
 export const notesComplete=(n:LabNotes)=>Object.values(n).every(v=>v.trim().length>=2);
 export function readPractical2(raw:unknown):Practical2{
  const out=newPractical2(),r=raw as Partial<Practical2>|null;
- for(const l of missionLevels){const a=r?.[l];if(!a)continue;const n=out[l];n.started=a.started===true;n.draft=readNotes(a.draft);
+ for(const l of missionLevels){const a=r?.[l];if(!a)continue;const n=out[l];n.started=a.started===true;n.knowledgePassedAt=date(a.knowledgePassedAt)?a.knowledgePassedAt:null;n.draft=readNotes(a.draft);if(l===15)n.measurement=readMeasurement(a.measurement);
  for(const key of Object.keys(findingRoles) as Finding[])if(typeof a.findings?.[key]==='string'&&a.findings[key]!.trim().length>=2)n.findings[key]=a.findings[key]!.slice(0,2000);
  n.jumpers=jumperTasks.filter(t=>Array.isArray(a.jumpers)&&a.jumpers.includes(t.id)).map(t=>t.id);
  // These are local activity history, never official approval.
@@ -48,7 +49,15 @@ export function labAction(p:Progress,level:MissionLevel,a:LabAction,save:(p:Prog
  }
  const next={...p,practical2:state};if(!save(next))return 'failed';Object.assign(p,next);return 'saved';
 }
-export function labStatus(p:Progress,l:MissionLevel){const r=p.practical2[l];return r.submission?'교사 확인 대기 · 로컬 제출, 공식 승인 아님':r.virtualAt?'가상 실습 완료 · 로컬 활동 기록':r.started?'진행 중':'시작 전'}
+const received=new WeakMap<Progress,string>();
+export function measurementStatus(p:Progress){const m=p.practical2[15].measurement;return m&&received.get(p)===JSON.stringify(m)?'실물 검증 완료 · 이번 실행의 USB 수신, 공식 교사 인증 아님':m?'실측 기록 보관 · 현재 실물 재검증 대기':'실물 검증 대기'}
+export function recordMeasurement(p:Progress,run:MeasurementRun,save:(p:Progress)=>boolean){
+ const measurement=run.evidence();if(!measurement)return false;
+ const next={...p,practical2:{...p.practical2,15:{...p.practical2[15],started:true,measurement}}};
+ if(!save(next))return false;Object.assign(p,next);received.set(p,JSON.stringify(measurement));return true;
+}
+export function labStatus(p:Progress,l:MissionLevel){const r=p.practical2[l];const status=l===15?measurementStatus(p):l===14&&r.started?'실물 검증 대기 · 업로드 결과는 교사 확인 필요':r.virtualAt?'가상 실습 완료 · 로컬 활동 기록':r.started?'진행 중':'시작 전';return status+(r.submission?' / 교사 확인 대기 · 로컬 제출, 공식 승인 아님':'')}
+
 export const exportPractical2=(p:Progress)=>({format:'tech-quest-practical2-v1',notice:'학생 로컬 기록입니다. 교사에게 자동 전송되지 않으며 공식 인증이 아닙니다.',missions:readPractical2(p.practical2)});
 
 export function missionWiringError(w:Wires,profile:Profile,otherWires:number){return wiringError(w,profile)??(w.DATA!=='GPIO21'?'이번 미션의 펌웨어는 DATA=GPIO21입니다. 배선과 코드의 핀을 일치시키세요.':otherWires!==0?'DHT11 이외의 배선을 분리하세요.':null)}

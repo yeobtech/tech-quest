@@ -1,3 +1,4 @@
+import {missionLevels,type MissionLevel} from './practical2';
 import {stage2Level,selectQuestions,validSelection,questionBank,readHistory} from './stage2Data';
 import {requiredExp} from '../data/config';
 import {lessons} from './stage1Data';
@@ -50,6 +51,7 @@ export function takeExam(p:Progress,a:ExamAction,save:(p:Progress)=>boolean):Exa
   if(questions.every(q=>next.exam!.solved.includes(q.id))){
    const credits=questions.filter(q=>lessons.some(l=>l.questions.some(item=>item.id===q.id))).map(q=>q.id).filter(id=>!p.stage1.solved.includes(id));
    next.stage1={...p.stage1,examCredits:[...new Set([...p.stage1.examCredits,...credits])]};
+   if(missionLevels.includes(p.level as MissionLevel)){const l=p.level as MissionLevel;next.practical2={...p.practical2,[l]:{...p.practical2[l],knowledgePassedAt:new Date().toISOString()}}}
    recordExam(next);
    next.exp-=requiredExp(p.level);next.level=p.level+1;
    next.exam=readExam(null,next);result='promoted';

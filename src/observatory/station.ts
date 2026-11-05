@@ -1,3 +1,4 @@
+import {MeasurementRun} from '../education/measurement2';
 import {missionWiringError} from '../education/practical2';
 import {makeBoard} from './board';
 import {inputs,outputs,wiringError,type BoardPin,type SensorPin,type Profile,type Wires} from './wiring';
@@ -5,7 +6,7 @@ import {readSerial} from './sensor';
 import {badges,Observatory,principle,recordTitle,title} from './mission';
 import './station.css';
 
-export interface StationPractice {mode:'wiring'|'measurement';onWiring:(w:Wires,profile:Profile,otherWires:number)=>boolean}
+export interface StationPractice {mode:'wiring'|'measurement';onWiring:(w:Wires,profile:Profile,otherWires:number)=>boolean;onMeasurement?:(run:MeasurementRun)=>boolean}
 export function openStation(ids:string[],save:()=>boolean,done:()=>void,practice?:StationPractice){
  const d=document.createElement('dialog');d.className='workshop station';d.setAttribute('aria-labelledby','station-title');
  d.innerHTML=`<div class="station-head"><div><small>기술 교관 의뢰 · KS5034 LAB</small><h2 id="station-title">고장 난 온습도 관측소</h2></div><div><button data-toggle aria-expanded="false">미션 검사 · 0/3</button><button data-exit>실습 종료 · 마을로 복귀</button></div></div>
@@ -17,7 +18,7 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void,practice
  <h3>배선 검사</h3><label>가상 센서 사양 <select data-profile><option value="unknown">미확인</option><option value="3v3" selected>3.3V 호환 · DATA 풀업 3.3V</option><option value="5v">5V 전원 또는 DATA 풀업 5V</option></select></label>
  <button data-check>배선 검사</button><p data-wiremsg role="status"></p>
  <div data-hardware><div class="shield"><span class="golem" aria-hidden="true">▣ ▣</span><div><b>센서 오류 골렘</b><p data-shield></p></div></div>
- <h3>2 · 온습도 수신</h3><p>이번 실물 구성: KS5034 · DHT11 3핀 · VCC → 3V3, DATA → GPIO21, GND → GND. 5V DATA를 GPIO에 직접 연결하지 마세요.</p>
+ <h3>2 · 온습도 수신</h3><p>펌웨어는 2초 간격으로 전송합니다. 실습 장치 검증은 약 2초 간격(1.5~2.5초)의 정상 USB 데이터 3회를 확인합니다. 측정값을 특정 온도로 맞출 필요가 없습니다.</p><p>이번 실물 구성: KS5034 · DHT11 3핀 · VCC → 3V3, DATA → GPIO21, GND → GND. 5V DATA를 GPIO에 직접 연결하지 마세요.</p>
  <label><input type="checkbox" data-safe> 실물의 VCC·GND·DATA 배열, 3.3V 동작 및 DATA 풀업 3.3V를 확인함</label>
  <div><button data-connect>실제 USB 장치 연결</button> <button data-stop>연결 해제</button> <button data-mock>Mock 연습</button></div>
  <p data-link role="status"></p><p data-last>마지막 정상 USB 측정 —</p><output data-reading>온도 — °C · 습도 — %</output>
@@ -27,6 +28,7 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void,practice
  const get=<T extends HTMLElement>(k:string)=>d.querySelector<T>('[data-'+k+']')!;
  const btn=(k:string)=>get<HTMLButtonElement>(k);
  if(practice){d.querySelector('#station-title')!.textContent=practice.mode==='wiring'?'Lv.13 · DHT11 가상 배선':'Lv.15 · DHT11 실물 측정';get('hardware').hidden=practice.mode==='wiring';btn('unlock').hidden=true;get('answer').closest('label')!.hidden=true;get('shield').closest('.shield')!.setAttribute('hidden','');get('answer').closest('label')!.previousElementSibling!.setAttribute('hidden','');btn('exit').textContent='실습 기록으로 복귀'}
+ const run=new MeasurementRun();let measured=false;
  const m=new Observatory(),w:Wires={};let selected='',controller:AbortController|undefined,mock=0,last=0;
  let shared=false,otherWires=0,lastCircuit='';
  const locations:Partial<Record<SensorPin,string>>={};
@@ -50,7 +52,7 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void,practice
    d.classList.toggle('restored',completed());
  }
  function stop(){
-   controller?.abort();if(mock)window.clearInterval(mock);mock=0;m.resetConnection();last=0;
+   run.close();measured=false;controller?.abort();if(mock)window.clearInterval(mock);mock=0;m.resetConnection();last=0;
    get('link').textContent=navigator.serial&&window.isSecureContext?'연결 안 됨':'USB 연결 미지원 · 데스크톱 Chrome 또는 Edge에서 localhost나 HTTPS로 여세요.';get('reading').textContent='온도 — °C · 습도 — %';refresh();
  }
  function changed(){
@@ -109,15 +111,20 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void,practice
  btn('connect').onclick=async()=>{
    stop();const c=new AbortController();controller=c;refresh();get('link').textContent='실제 USB · 장치 선택 대기';
    let end='실제 USB 연결이 종료됐습니다.';
-   try{await readSerial(c.signal,()=>{m.connected=true;last=Date.now();get('link').textContent='실제 USB 연결 · 수신 대기';refresh()},v=>{
+   try{await readSerial(c.signal,()=>{run.open();m.connected=true;last=Date.now();get('link').textContent='실제 USB 연결 · 수신 대기';refresh()},v=>{
      const now=Date.now();
      if(now-last>5500)m.receive('serial',null);
      if(v){last=now;get('last').textContent='마지막 정상 USB 측정 · '+new Date(now).toLocaleString('ko-KR')}
-     m.receive('serial',v);get('reading').textContent=v?'실제 USB · '+v.temperature+' °C / '+v.humidity+' %':'측정 실패 · 값 없음';get('link').textContent=!v?'USB 연결됨 · 측정 실패':m.count===3?'USB 연결됨 · 연속 3회 측정 검증 완료 (장치 검증 완료)':'USB 연결됨 · 정상 측정 '+m.count+' / 3';refresh();
+     m.receive('serial',v);
+     if(practice?.mode==='measurement'){
+       run.receive('serial',v,now);m.count=run.count;
+       if(run.count===3&&!measured){measured=practice.onMeasurement?.(run)===true;get('result').textContent=measured?'✓ 3회 실측 결과 저장 완료 · 공식 교사 승인은 별도입니다.':'저장 실패 · 연결을 유지하면 다음 정상 측정에서 재시도합니다.'}
+     }
+     get('reading').textContent=v?'실제 USB · '+v.temperature+' °C / '+v.humidity+' %':'측정 실패 · 값 없음';get('link').textContent=!v?'USB 연결됨 · 측정 실패':m.count===3?'USB 연결됨 · 연속 3회 측정 검증 완료 (장치 검증 완료)':'USB 연결됨 · 정상 측정 '+m.count+' / 3';refresh();
    })}catch(e){end='연결 실패 · '+(e instanceof Error?e.message:String(e))}
-   finally{controller=undefined;m.resetConnection();if(d.open){get('link').textContent=c.signal.aborted?'연결 해제':end;get('reading').textContent='온도 — °C · 습도 — %';refresh()}}
+   finally{run.close();controller=undefined;m.resetConnection();if(d.open){get('link').textContent=c.signal.aborted?'연결 해제':end;get('reading').textContent='온도 — °C · 습도 — %';refresh()}}
  };
- const timer=window.setInterval(()=>{if(m.connected&&Date.now()-last>5500){m.receive('serial',null);get('link').textContent='실제 USB · 수신 시간 초과';get('reading').textContent='측정값 없음';refresh()}},500);
+ const timer=window.setInterval(()=>{if(m.connected&&Date.now()-last>5500){run.expire();m.receive('serial',null);get('link').textContent='실제 USB · 수신 시간 초과';get('reading').textContent='측정값 없음';refresh()}},500);
  btn('unlock').onclick=()=>{
    if(practice)return;
    if(!m.answer(get<HTMLSelectElement>('answer').value)){get('result').textContent='측정 3회와 입력·처리·출력 순서를 확인하세요.';return}

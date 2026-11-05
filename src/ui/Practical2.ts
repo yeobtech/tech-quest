@@ -1,21 +1,23 @@
 import type {Progress} from '../systems/ProgressionSystem';
 import {makeBoard} from '../observatory/board';
-import {labAction,labStatus,recordWiring,recordFields,findingRoles,jumperTasks,exportPractical2,type MissionLevel,type Finding,type LabNotes} from '../education/practical2';
+import {labAction,labStatus,recordWiring,recordMeasurement,recordFields,findingRoles,jumperTasks,exportPractical2,type MissionLevel,type Finding,type LabNotes} from '../education/practical2';
 import './learning.css';
 const titles:Record<MissionLevel,string>={11:'ESP32-S3 구조 탐험',12:'점퍼선과 회로 기초',13:'DHT11 가상 배선',14:'실물 장치 연결',15:'DHT11 온습도 측정'};
 export function openPractical2(p:Progress,save:(p:Progress)=>boolean){
  const d=document.createElement('dialog');d.className='workshop learning';d.setAttribute('aria-label','스테이지 2 실제 수행');
  d.innerHTML='<h2>스테이지 2 · 실제 수행</h2><p>지식 시험·게임 EXP와 별도입니다. 가상 활동은 실물 인증이 아닙니다. 교사 인증 서버가 없어 공식 최종 완료를 표시하지 않습니다.</p><nav></nav><section data-activity></section><section data-notes></section><p role="status" aria-live="polite"></p><button data-export>전체 결과 파일 내보내기</button> <button data-close>교관으로 돌아가기</button>';
  const area=d.querySelector<HTMLElement>('[data-activity]')!,notes=d.querySelector<HTMLElement>('[data-notes]')!,status=d.querySelector<HTMLElement>('[role=status]')!;
- let level:MissionLevel=11;
+ let level:MissionLevel=11,summary:HTMLElement|undefined;
+ const updateSummary=()=>{if(summary)summary.textContent=`Lv.${level} · ${titles[level]} — ${labStatus(p,level)}`};
  const button=(parent:Element,text:string,fn:()=>void)=>{const b=document.createElement('button');b.textContent=text;b.onclick=fn;parent.append(b);return b};
  const text=(parent:Element,value:string)=>{const e=document.createElement('p');e.textContent=value;parent.append(e);return e};
  const fields={} as Record<keyof LabNotes,HTMLTextAreaElement>;
  const draft=()=>Object.fromEntries(Object.keys(recordFields).map(k=>[k,fields[k as keyof LabNotes].value])) as LabNotes;
- function saveDraft(){const r=labAction(p,level,{kind:'notes',notes:draft(),submit:false},save);status.textContent=r==='saved'?'초안 저장 완료':'저장 실패 · 입력은 화면에 남아 있습니다.';return r==='saved'}
+ function saveDraft(){const r=labAction(p,level,{kind:'notes',notes:draft(),submit:false},save);status.textContent=r==='saved'?'초안 저장 완료':'저장 실패 · 입력은 화면에 남아 있습니다.';if(r==='saved')updateSummary();return r==='saved'}
  function render(){
-  area.replaceChildren();notes.replaceChildren();const r=p.practical2[level];text(area,`Lv.${level} · ${titles[level]} — ${labStatus(p,level)}`);
-  button(area,'미션 시작 / 이어서 하기',()=>{status.textContent=labAction(p,level,{kind:'start'},save)==='saved'?'진행 중으로 저장했습니다.':'저장 실패';});
+  area.replaceChildren();notes.replaceChildren();const r=p.practical2[level];summary=text(area,'');updateSummary();
+  text(area,'A. 지식 평가: '+(r.knowledgePassedAt?'승급 시험 통과 기록 · '+new Date(r.knowledgePassedAt).toLocaleString('ko-KR'):'별도 통과 기록 없음 (이전 저장에서는 소급 추정하지 않음)')+' / B. 실제 수행: 아래 실습·제출 기록으로 별도 관리');
+  button(area,'미션 시작 / 이어서 하기',()=>{status.textContent=labAction(p,level,{kind:'start'},save)==='saved'?'진행 중으로 저장했습니다.':'저장 실패';updateSummary();});
   if(level===11){
    text(area,'기존 KS5034 3D 모델에서 USB PROG·USB OTG·GPIO·3V3·GND를 직접 선택하고 역할을 자신의 말로 기록하세요. 모델의 부품 높이는 교육용 근사치이며 실물 위치는 보드 표기를 확인하세요.');
    text(area,'확인한 단자: '+Object.keys(r.findings).join(', '));
@@ -24,7 +26,7 @@ export function openPractical2(p:Progress,save:(p:Progress)=>boolean){
     const panel=document.createElement('dialog');panel.className='workshop learning';panel.style.width='min(1300px,97vw)';panel.innerHTML='<h2>KS5034 주요 단자 찾기</h2><div data-view style="height:55dvh;min-height:280px"></div><p data-selected>3D 모델에서 단자를 선택하세요.</p><label>선택한 단자의 역할 설명<textarea rows="2" maxlength="2000"></textarea></label><button data-record>설명 저장</button> <button data-close>실습 기록으로 복귀</button><p role="status"></p>';
     let selected:Finding|undefined;const label=panel.querySelector<HTMLElement>('[data-selected]')!,feedback=panel.querySelector<HTMLElement>('[role=status]')!,input=panel.querySelector('textarea')!;
     const host=panel.querySelector<HTMLElement>('[data-view]')!;
-    const board=makeBoard(host,()=>{},(key,name)=>{selected=key as Finding;label.textContent=name+' · '+findingRoles[selected];input.value=p.practical2[11].findings[selected]??''},'explore');
+    const board=makeBoard(host,()=>{},(key,name)=>{selected=key?key as Finding:undefined;label.textContent=selected?name+' · '+findingRoles[selected]:name+' · 학습 대상 단자를 선택하세요.';input.value=selected?p.practical2[11].findings[selected]??'':''},'explore');
     const frame=host.querySelector('iframe')!;frame.style.cssText='width:100%;height:100%;border:0';
     panel.querySelector<HTMLButtonElement>('[data-record]')!.onclick=()=>{if(!selected){feedback.textContent='먼저 모델의 단자를 선택하세요.';return}const result=labAction(p,11,{kind:'finding',key:selected,explanation:input.value},save);feedback.textContent=result==='saved'?'선택·설명 저장 완료 · 설명의 정확성과 실물 수행은 교사가 확인합니다.':result==='failed'?'저장 실패':'역할 설명을 2자 이상 작성하세요.'};
     panel.querySelector<HTMLButtonElement>('[data-close]')!.onclick=()=>panel.close();panel.onclose=()=>{board.dispose();panel.remove();render()};document.body.append(panel);panel.showModal();
@@ -32,7 +34,7 @@ export function openPractical2(p:Progress,save:(p:Progress)=>boolean){
   }
   if(level===12){
    text(area,'수 단자는 돌출 핀, 암 단자는 핀을 받는 소켓입니다. 실물은 전원을 분리하고 관찰하세요. 아래 활동은 가상 선택 연습입니다.');
-   for(const q of jumperTasks){const f=document.createElement('fieldset');text(f,q.prompt);const feedback=text(f,r.jumpers.includes(q.id)?'✓ 확인됨':'');for(const answer of q.choices)button(f,answer,()=>{const result=labAction(p,12,{kind:'jumper',id:q.id,answer},save);feedback.textContent=result==='saved'?'✓ 정답 · '+q.hint:result==='wrong'?'다시 시도하세요. '+q.hint:'저장 실패';}).disabled=r.jumpers.includes(q.id);area.append(f)}
+   for(const q of jumperTasks){const f=document.createElement('fieldset');text(f,q.prompt);const feedback=text(f,r.jumpers.includes(q.id)?'✓ 확인됨':'');for(const answer of q.choices)button(f,answer,()=>{const result=labAction(p,12,{kind:'jumper',id:q.id,answer},save);feedback.textContent=result==='saved'?'✓ 정답 · '+q.hint:result==='wrong'?'다시 시도하세요. '+q.hint:'저장 실패';if(result==='saved'){f.querySelectorAll('button').forEach(b=>b.disabled=true);updateSummary()}}).disabled=r.jumpers.includes(q.id);area.append(f)}
   }
   if(level===13){
    text(area,'DHT11 3핀·3.3V 모듈: VCC → 3V3 / DATA → GPIO21 / GND → GND. 가상 배선은 실제 통전 안전성을 대신하지 않습니다.');
@@ -41,13 +43,26 @@ export function openPractical2(p:Progress,save:(p:Progress)=>boolean){
     if(!saveDraft())return;try{const {openStation}=await import('../observatory/station');if(d.open)openStation([],()=>false,()=>render(),{mode:'wiring',onWiring:(w,profile,other)=>recordWiring(p,w,profile,other,save)})}catch{status.textContent='배선 실습을 열지 못했습니다. 다시 시도하세요.'}
    });
   }
-  if(level>=14)text(area,'이 단계는 다음 구현 단계에서 연결됩니다. 실물 완료로 기록되지 않습니다.');
+  if(level===14){
+   text(area,'① 데이터 지원 USB-C 케이블로 KS5034 USB PROG에 연결합니다. Windows 장치 관리자 → 포트(COM 및 LPT)에서 장치 이름과 현재 COM 번호를 기록하세요. COM23은 이전 확인값이며 컴퓨터·연결 상황에 따라 달라질 수 있습니다.');
+   text(area,'② 기존 소스와 PlatformIO 설정을 별도 복사하고 복원 가능한 프로그램이 있는지 교사와 확인하세요. 업로드는 보드의 현재 펌웨어를 교체합니다. 기존 실행 프로그램 보존이 필요하면 별도 실습 보드를 쓰세요. 이 게임은 업로드를 실행하지 않습니다.');
+   text(area,'③ 별도 예제 firmware/observatory_dht11을 사용합니다. DATA_PIN=21, DHT11 3핀·3.3V, VCC→3V3, GND→GND를 전원 분리 상태에서 확인하세요. 폴더에서 pio run으로 먼저 빌드하고, 교사 확인 후 pio run -t upload --upload-port COM번호로 업로드합니다. 기존 프로젝트 설정을 덮어쓰지 마세요.');
+   text(area,'④ 115200 baud 시리얼 모니터에서 DATA=GPIO21 부팅 로그, 2초 간격 JSON, valid:true/false를 확인합니다. 업로드 성공과 측정 성공은 별개입니다. 브라우저 연결 전 모니터를 닫으세요.');
+   text(area,'장치 이름·COM 번호·업로드 성공/실패 로그 요약·증거 파일 이름과 오류 해결 과정을 아래에 기록하고 결과 파일을 교사에게 제출하세요. 자기 기록만으로 실물 검증 완료가 되지 않습니다. 비밀번호와 개인정보는 넣지 마세요.');
+  }
+  if(level===15){
+   text(area,'확인된 DHT11 3핀·3.3V 모듈과 GPIO21 펌웨어를 사용합니다. 가상 배선 검사 후 미션 검사 화면에서 안전 확인 → 실제 USB 장치 연결을 직접 누르세요. 2초 간격 정상 데이터 3회를 확인하며 Mock은 제외됩니다. 실패하면 전원을 분리하고 배선·코드·포트를 점검해 다시 시도하세요. EXP 패널티는 없습니다.');
+   if(r.measurement)for(const v of r.measurement.samples)text(area,`저장된 USB 측정 기록 · ${new Date(v.at).toLocaleString('ko-KR')} · ${v.temperature} °C / ${v.humidity} %`);
+   button(area,'관측소 · 실제 온습도 수신',async()=>{
+    if(!saveDraft())return;try{const {openStation}=await import('../observatory/station');if(d.open)openStation([],()=>false,()=>render(),{mode:'measurement',onWiring:(w,profile,other)=>recordWiring(p,w,profile,other,save),onMeasurement:run=>recordMeasurement(p,run,save)})}catch{status.textContent='관측소를 열지 못했습니다. 다시 시도하세요.'}
+   });
+  }
   text(notes,'실습 기록 · 문제가 없었다면 “문제 없음”과 점검 결과를 적으세요. 비밀번호 등 개인정보는 기록하지 마세요.');
   for(const [key,title] of Object.entries(recordFields)){const label=document.createElement('label');label.textContent=title;const input=document.createElement('textarea');input.rows=2;input.maxLength=2000;input.value=r.draft[key as keyof LabNotes];fields[key as keyof LabNotes]=input;label.append(input);notes.append(label)}
   button(notes,'초안 저장',saveDraft);
-  button(notes,'결과 제출 / 재제출 · 교사 확인 대기',()=>{const result=labAction(p,level,{kind:'notes',notes:draft(),submit:true},save);status.textContent=result==='saved'?'이 기기에 제출본 저장 · 교사에게 자동 전송되지 않았습니다. 결과 파일을 지정 장소에 제출하세요.':result==='incomplete'?'여섯 항목을 각각 2자 이상 작성하세요.':'저장 실패';});
+  button(notes,'결과 제출 / 재제출 · 교사 확인 대기',()=>{const result=labAction(p,level,{kind:'notes',notes:draft(),submit:true},save);status.textContent=result==='saved'?'이 기기에 제출본 저장 · 교사에게 자동 전송되지 않았습니다. 결과 파일을 지정 장소에 제출하세요.':result==='incomplete'?'여섯 항목을 각각 2자 이상 작성하세요.':'저장 실패';if(result==='saved')updateSummary();});
  }
- for(const l of [11,12,13] as MissionLevel[])button(d.querySelector('nav')!,`Lv.${l} ${titles[l]}`,()=>{if(saveDraft()){level=l;render()}});
+ for(const l of [11,12,13,14,15] as MissionLevel[])button(d.querySelector('nav')!,`Lv.${l} ${titles[l]}`,()=>{if(saveDraft()){level=l;render()}});
  d.querySelector<HTMLButtonElement>('[data-export]')!.onclick=()=>{if(!saveDraft())return;const url=URL.createObjectURL(new Blob([JSON.stringify(exportPractical2(p),null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='TECH_QUEST-stage2-practical.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status.textContent='로컬 기록 내보내기 완료 · 공식 인증서가 아닙니다.'};
  d.querySelector<HTMLButtonElement>('[data-close]')!.onclick=()=>{if(saveDraft())d.close()};d.oncancel=e=>{e.preventDefault();if(saveDraft())d.close()};d.onclose=()=>d.remove();document.body.append(d);render();d.showModal();
 }
