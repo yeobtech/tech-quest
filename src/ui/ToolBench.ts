@@ -1,3 +1,4 @@
+import {openPractical2} from './Practical2';
 import {openCertification} from './Certification';
 import {openLearning} from './Learning';
 import {canUse, nipperLesson, tools, type ActiveTool} from '../data/tools';
@@ -37,6 +38,7 @@ export function openToolBench(state:Progress, greeting:string, save:()=>boolean,
   panel.querySelector('[data-close]')!.before(studyButton);
   studyButton.onclick=()=>openLearning(state,studySave??(()=>false),()=>{},boss?()=>{panel.addEventListener('close',boss,{once:true});panel.close()}:undefined);
   if(state.stage1.bossCleared){const certification=document.createElement('button');certification.textContent='디지털 기술자 실습 인증';panel.querySelector('[data-close]')!.before(certification);certification.onclick=()=>openCertification(state,studySave??(()=>false),()=>{})}
+  const practical=document.createElement('button');practical.textContent='스테이지 2 · 실제 수행 미션';panel.querySelector('[data-close]')!.before(practical);practical.onclick=()=>openPractical2(state,studySave??(()=>false));
   const mission=document.createElement('button');mission.textContent='교관 의뢰 · 고장 난 온습도 관측소';
   panel.querySelector('[data-close]')!.before(mission);
   mission.onclick=async()=>{mission.disabled=true;try{

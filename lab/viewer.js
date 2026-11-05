@@ -45,6 +45,11 @@ export function setupViewer({T,scene,wiring,cam,orbit,renderer,canvas,categories
   });
   function select(objects,part){
     clearCable();
+    if(parent!==window){
+      const o=objects[0],net=o?.userData?.label;
+      const target=part.name==='USB PROG'||part.name==='USB OTG'?part.name:net==='3V3'||net==='GND'?net:typeof net==='string'&&/^GPIO[0-9]+$/.test(net)?'GPIO':null;
+      if(target)parent.postMessage({type:'ks5034:selection',target,name:part.name},location.origin);
+    }
     selected=objects;mark(markers[1],objects);el('focus').disabled=!selected;
     el('pinName').textContent=part.name;
     el('info').textContent='GPIO '+part.gpio+' · '+part.volts+'\n'+part.use;

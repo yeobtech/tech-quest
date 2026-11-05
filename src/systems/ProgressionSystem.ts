@@ -1,3 +1,4 @@
+import {newPractical2,type Practical2} from '../education/practical2';
 import {newCertification,type CertificationProgress} from '../education/certificationData';
 import {readExam,type PromotionExam} from '../education/promotion';
 import {virusConfig} from '../education/virus';
@@ -10,8 +11,8 @@ import { PLAYER } from '../data/config';
 import { readWardrobe, type Wardrobe } from '../data/shop';
 import type { LearningProgress } from '../education/types';
 import type { ActiveTool } from '../data/tools';
-export interface Progress { examHistory:string[]; certification:CertificationProgress; exam:PromotionExam|null; stage1:Stage1Progress; factoryCleared:boolean; journal:Journal; achieved:string[]; inventory:Inventory; level: number; exp: number; gold: number; kills: number; learning: LearningProgress; wardrobe: Wardrobe; tool:ActiveTool }
-export const newProgress = (): Progress => ({ examHistory:[], certification:newCertification(), exam:null, stage1:newStage1(), factoryCleared:false, journal:{}, achieved:[], inventory:{}, level: 1, exp: 0, gold: 0, kills: 0, tool:'scissors', wardrobe:readWardrobe(), learning: { rank: '입문', completedMissionIds: [] } });
+export interface Progress { practical2:Practical2; examHistory:string[]; certification:CertificationProgress; exam:PromotionExam|null; stage1:Stage1Progress; factoryCleared:boolean; journal:Journal; achieved:string[]; inventory:Inventory; level: number; exp: number; gold: number; kills: number; learning: LearningProgress; wardrobe: Wardrobe; tool:ActiveTool }
+export const newProgress = (): Progress => ({ practical2:newPractical2(), examHistory:[], certification:newCertification(), exam:null, stage1:newStage1(), factoryCleared:false, journal:{}, achieved:[], inventory:{}, level: 1, exp: 0, gold: 0, kills: 0, tool:'scissors', wardrobe:readWardrobe(), learning: { rank: '입문', completedMissionIds: [] } });
 export class ProgressionSystem {
   constructor(public state: Progress) {}
   questAction(q:Quest,atBoard:boolean,save:(next:Progress)=>boolean){
