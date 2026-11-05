@@ -1,6 +1,6 @@
 import type {Progress} from '../systems/ProgressionSystem';
 import {makeBoard} from '../observatory/board';
-import {labAction,labStatus,recordFields,findingRoles,jumperTasks,exportPractical2,type MissionLevel,type Finding,type LabNotes} from '../education/practical2';
+import {labAction,labStatus,recordWiring,recordFields,findingRoles,jumperTasks,exportPractical2,type MissionLevel,type Finding,type LabNotes} from '../education/practical2';
 import './learning.css';
 const titles:Record<MissionLevel,string>={11:'ESP32-S3 구조 탐험',12:'점퍼선과 회로 기초',13:'DHT11 가상 배선',14:'실물 장치 연결',15:'DHT11 온습도 측정'};
 export function openPractical2(p:Progress,save:(p:Progress)=>boolean){
@@ -34,13 +34,20 @@ export function openPractical2(p:Progress,save:(p:Progress)=>boolean){
    text(area,'수 단자는 돌출 핀, 암 단자는 핀을 받는 소켓입니다. 실물은 전원을 분리하고 관찰하세요. 아래 활동은 가상 선택 연습입니다.');
    for(const q of jumperTasks){const f=document.createElement('fieldset');text(f,q.prompt);const feedback=text(f,r.jumpers.includes(q.id)?'✓ 확인됨':'');for(const answer of q.choices)button(f,answer,()=>{const result=labAction(p,12,{kind:'jumper',id:q.id,answer},save);feedback.textContent=result==='saved'?'✓ 정답 · '+q.hint:result==='wrong'?'다시 시도하세요. '+q.hint:'저장 실패';}).disabled=r.jumpers.includes(q.id);area.append(f)}
   }
-  if(level>=13)text(area,'이 단계는 다음 구현 단계에서 연결됩니다. 실물 완료로 기록되지 않습니다.');
+  if(level===13){
+   text(area,'DHT11 3핀·3.3V 모듈: VCC → 3V3 / DATA → GPIO21 / GND → GND. 가상 배선은 실제 통전 안전성을 대신하지 않습니다.');
+   if(r.wiring)text(area,'마지막 정상 배선 기록: VCC → 3V3, DATA → GPIO21, GND → GND. 다시 입장하면 빈 회로에서 재연습합니다.');
+   button(area,'Three.js DHT11 가상 배선 열기',async()=>{
+    if(!saveDraft())return;try{const {openStation}=await import('../observatory/station');if(d.open)openStation([],()=>false,()=>render(),{mode:'wiring',onWiring:(w,profile,other)=>recordWiring(p,w,profile,other,save)})}catch{status.textContent='배선 실습을 열지 못했습니다. 다시 시도하세요.'}
+   });
+  }
+  if(level>=14)text(area,'이 단계는 다음 구현 단계에서 연결됩니다. 실물 완료로 기록되지 않습니다.');
   text(notes,'실습 기록 · 문제가 없었다면 “문제 없음”과 점검 결과를 적으세요. 비밀번호 등 개인정보는 기록하지 마세요.');
   for(const [key,title] of Object.entries(recordFields)){const label=document.createElement('label');label.textContent=title;const input=document.createElement('textarea');input.rows=2;input.maxLength=2000;input.value=r.draft[key as keyof LabNotes];fields[key as keyof LabNotes]=input;label.append(input);notes.append(label)}
   button(notes,'초안 저장',saveDraft);
   button(notes,'결과 제출 / 재제출 · 교사 확인 대기',()=>{const result=labAction(p,level,{kind:'notes',notes:draft(),submit:true},save);status.textContent=result==='saved'?'이 기기에 제출본 저장 · 교사에게 자동 전송되지 않았습니다. 결과 파일을 지정 장소에 제출하세요.':result==='incomplete'?'여섯 항목을 각각 2자 이상 작성하세요.':'저장 실패';});
  }
- for(const l of [11,12] as MissionLevel[])button(d.querySelector('nav')!,`Lv.${l} ${titles[l]}`,()=>{if(saveDraft()){level=l;render()}});
+ for(const l of [11,12,13] as MissionLevel[])button(d.querySelector('nav')!,`Lv.${l} ${titles[l]}`,()=>{if(saveDraft()){level=l;render()}});
  d.querySelector<HTMLButtonElement>('[data-export]')!.onclick=()=>{if(!saveDraft())return;const url=URL.createObjectURL(new Blob([JSON.stringify(exportPractical2(p),null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='TECH_QUEST-stage2-practical.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status.textContent='로컬 기록 내보내기 완료 · 공식 인증서가 아닙니다.'};
  d.querySelector<HTMLButtonElement>('[data-close]')!.onclick=()=>{if(saveDraft())d.close()};d.oncancel=e=>{e.preventDefault();if(saveDraft())d.close()};d.onclose=()=>d.remove();document.body.append(d);render();d.showModal();
 }
