@@ -1,3 +1,4 @@
+import {helperResource} from '../education/teacherReview';
 import {lessons,shuffle} from '../education/stage1Data';
 import {study,learningLevel,lessonDone,knowledgeDone,bossReady} from '../education/stage1';
 import type {Progress} from '../systems/ProgressionSystem';
@@ -15,6 +16,7 @@ export function openLearning(p:Progress,save:(p:Progress)=>boolean,done:()=>void
   area.replaceChildren();
   if(!s.accepted){button(area,'교관 미션 수락',()=>{status.textContent=study(p,{kind:'accept'},save)==='saved'?'미션을 수락했습니다.':'저장 실패 · 다시 시도하세요.';render()});return}
   const h=document.createElement('h3');h.textContent=`학습 Lv.${level} · ${l.title}`;area.append(h);
+    if(level>=5&&level<=7){const link=document.createElement('a');link.href=helperResource.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Surface Go 3 Helper · 증상별 단계 안내 (새 창)';area.append(link);const safe=document.createElement('p');safe.textContent='증상 분류: '+helperResource.categories.join(', ')+'. 도움말은 읽기·원인 추정에 활용하세요. 초기화·삭제·시스템 설정 변경은 실행하지 말고 교사에게 요청하세요.';area.append(safe)}
   const text=document.createElement('p');text.textContent=l.content;area.append(text);
   for(const [i,q] of l.questions.entries()){
    const field=document.createElement('fieldset'),legend=document.createElement('legend'),feedback=document.createElement('p');legend.textContent=`문제 ${i+1}/2 · ${q.kind==='concept'?'개념':'상황 적용'} · ${q.prompt}`;field.append(legend);feedback.setAttribute('role','status');
@@ -28,8 +30,9 @@ export function openLearning(p:Progress,save:(p:Progress)=>boolean,done:()=>void
   const note=document.createElement('p');note.textContent='실제 수행을 마친 뒤 결과를 10자 이상 설명하세요. 결과 제출은 다음 학습을 열지만 실제 수행 인증·교사 승인·수행평가 성적을 뜻하지 않습니다.';area.append(note);
   const label=document.createElement('label');label.textContent='수행 결과 설명';const input=document.createElement('textarea');input.maxLength=2000;input.rows=3;input.value=s.activities[level]?.text??'';label.append(input);area.append(label);
   button(area,'수행 결과 제출',()=>{const r=study(p,{kind:'submit',level,text:input.value},save);status.textContent=r==='saved'?'결과 제출 완료 · 교사 미검증. 다음 학습을 선택하세요.':r==='failed'?'저장 실패 · 변경되지 않았습니다.':'두 문제를 풀고 수행 결과를 10자 이상 작성하세요.';render()}).disabled=!knowledgeDone(s,level);
-  if(s.activities[level]){const info=document.createElement('p');info.textContent='제출됨 · 교사 미검증';area.append(info)}
+  if(s.activities[level]){const info=document.createElement('p');info.textContent=s.activities[level].review?'외부 교사 확인됨 · 게임 진행과 별도 기록':'제출됨 · 교사 미검증';area.append(info)}
   if(bossReady(s)&&boss)button(area,s.bossCleared?'오류 바이러스 재도전':'오류 바이러스 도전',()=>{d.addEventListener('close',boss,{once:true});d.close()});
  }
  d.querySelector<HTMLButtonElement>('[data-close]')!.onclick=()=>d.close();d.onclose=()=>{d.remove();done()};document.body.append(d);render();d.showModal();
 }
+

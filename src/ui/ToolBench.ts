@@ -1,7 +1,8 @@
+import {openLearning} from './Learning';
 import {canUse, nipperLesson, tools, type ActiveTool} from '../data/tools';
 import type {Progress} from '../systems/ProgressionSystem';
 
-export function openToolBench(state:Progress, greeting:string, save:()=>boolean, apply:()=>void, done:()=>void) {
+export function openToolBench(state:Progress, greeting:string, save:()=>boolean, apply:()=>void, done:()=>void, studySave?:(p:Progress)=>boolean, boss?:()=>void) {
   const panel=document.createElement('dialog');panel.className='workshop';panel.setAttribute('aria-label','기술 교관 공구 실습');
   panel.innerHTML='<small>기술 교관 · 공구 실습</small><h2>전선 절단 연습</h2><p data-greeting></p><p data-lesson></p><section></section><p role="status"></p><button data-close>대화 마치기</button>';
   panel.querySelector('[data-greeting]')!.textContent=greeting;
@@ -31,6 +32,9 @@ export function openToolBench(state:Progress, greeting:string, save:()=>boolean,
     if(!save()){state.tool=old;status.textContent='공구 변경을 저장하지 못했습니다.';return}
     apply();status.textContent=tools[id].name+' 장착 완료';render();
   }
+    const studyButton=document.createElement('button');studyButton.textContent='스테이지 1 · 디지털 기술자 훈련소';
+  panel.querySelector('[data-close]')!.before(studyButton);
+  studyButton.onclick=()=>openLearning(state,studySave??(()=>false),()=>{},boss?()=>{panel.close();boss()}:undefined);
   const mission=document.createElement('button');mission.textContent='교관 의뢰 · 고장 난 온습도 관측소';
   panel.querySelector('[data-close]')!.before(mission);
   mission.onclick=async()=>{mission.disabled=true;try{
@@ -41,3 +45,4 @@ export function openToolBench(state:Progress, greeting:string, save:()=>boolean,
   panel.addEventListener('close',()=>{panel.remove();done()},{once:true});
   document.body.append(panel);render();panel.showModal();
 }
+

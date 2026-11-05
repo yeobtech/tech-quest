@@ -153,7 +153,7 @@ export class GameScene extends Phaser.Scene {
               const ok=this.save.save(this.progress.state); this.hud.saveStatus(ok); return ok;
             };
             if(npc.shop) openShop(this.progress.state,persist,()=>this.applyEquipment(),(w,a,t)=>preview(this,w,a,t),()=>{this.refresh();done()});
-            else if(npc.instructor) openToolBench(this.progress.state,npc.speech,persist,()=>this.applyEquipment(),()=>{this.refresh();done()});
+            else if(npc.instructor) openToolBench(this.progress.state,npc.speech,persist,()=>this.applyEquipment(),()=>{this.refresh();done()},next=>this.save.save(next));
             else this.hud.talk(npc,done);
             return;
           }
@@ -413,4 +413,5 @@ export class GameScene extends Phaser.Scene {
     this.add.text(110, 536, 'E · 기술자 훈련장 입장', { fontSize: '17px', color: '#f0e6c2', backgroundColor: '#456457', padding: { x: 12, y: 10 } });
   }
 }
+
 

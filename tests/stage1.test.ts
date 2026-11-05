@@ -11,3 +11,12 @@ test('ordered learning is independent, atomic, repeatable and restored with subm
  for(const l of lessons){for(const q of l.questions){assert.equal(study(p,{kind:'answer',id:q.id,choice:'c1'},()=>true),'wrong');assert.equal(study(p,{kind:'answer',id:q.id,choice:q.answer},()=>false),'failed');assert.ok(!p.stage1.solved.includes(q.id));study(p,{kind:'answer',id:q.id,choice:q.answer},n=>save.save(n))}assert.equal(learningLevel(p.stage1),l.level);assert.equal(study(p,{kind:'submit',level:l.level,text:'직접 연습한 결과를 정리한 내용입니다.'},n=>save.save(n)),'saved')}
  assert.ok(bossReady(p.stage1));assert.equal(p.level,1);assert.equal(p.gold,0);persist();assert.deepEqual(save.load().stage1,p.stage1);assert.equal(p.stage1.activities[1].review,undefined);assert.equal(readStage1({solved:['fake']}).solved.length,0);
 });
+import {applyTeacherReview} from '../src/education/teacherReview.ts';
+test('teacher approval needs an external verified receipt bound to the current submission',async()=>{
+ const p=newProgress();p.stage1.activities[1]={text:'수행 결과를 실제로 설명했습니다.',submittedAt:'2026-11-05T00:00:00Z',selfReported:true};
+ const decision={id:'receipt',teacherId:'teacher',level:1,approvedAt:'2026-11-05T00:01:00Z',submissionText:p.stage1.activities[1].text,submittedAt:p.stage1.activities[1].submittedAt};
+ assert.equal(await applyTeacherReview(p,{}, {verify:async()=>null},()=>true),false);
+ assert.equal(await applyTeacherReview(p,{}, {verify:async()=>({...decision,submissionText:'other'})},()=>true),false);
+ assert.equal(await applyTeacherReview(p,{}, {verify:async()=>decision},()=>false),false);assert.equal(p.stage1.activities[1].review,undefined);
+ assert.equal(await applyTeacherReview(p,{}, {verify:async()=>decision},()=>true),true);
+});
