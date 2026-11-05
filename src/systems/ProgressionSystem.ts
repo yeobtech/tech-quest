@@ -1,15 +1,16 @@
+import {readExam,type PromotionExam} from '../education/promotion';
 import {virusConfig} from '../education/virus';
 import {bossReady} from '../education/stage1';
 import {newStage1,type Stage1Progress} from '../education/stage1';
 import {factoryReward} from '../data/factory';
 import {ready,type Journal,type Quest} from '../data/quests';
 import type {Inventory} from '../data/materials';
-import { PLAYER, requiredExp } from '../data/config';
+import { PLAYER } from '../data/config';
 import { readWardrobe, type Wardrobe } from '../data/shop';
 import type { LearningProgress } from '../education/types';
 import type { ActiveTool } from '../data/tools';
-export interface Progress { stage1:Stage1Progress; factoryCleared:boolean; journal:Journal; achieved:string[]; inventory:Inventory; level: number; exp: number; gold: number; kills: number; learning: LearningProgress; wardrobe: Wardrobe; tool:ActiveTool }
-export const newProgress = (): Progress => ({ stage1:newStage1(), factoryCleared:false, journal:{}, achieved:[], inventory:{}, level: 1, exp: 0, gold: 0, kills: 0, tool:'scissors', wardrobe:readWardrobe(), learning: { rank: '입문', completedMissionIds: [] } });
+export interface Progress { exam:PromotionExam|null; stage1:Stage1Progress; factoryCleared:boolean; journal:Journal; achieved:string[]; inventory:Inventory; level: number; exp: number; gold: number; kills: number; learning: LearningProgress; wardrobe: Wardrobe; tool:ActiveTool }
+export const newProgress = (): Progress => ({ exam:null, stage1:newStage1(), factoryCleared:false, journal:{}, achieved:[], inventory:{}, level: 1, exp: 0, gold: 0, kills: 0, tool:'scissors', wardrobe:readWardrobe(), learning: { rank: '입문', completedMissionIds: [] } });
 export class ProgressionSystem {
   constructor(public state: Progress) {}
   questAction(q:Quest,atBoard:boolean,save:(next:Progress)=>boolean){
@@ -42,9 +43,9 @@ export class ProgressionSystem {
   get maxHp() { return PLAYER.baseHp + (this.state.level - 1) * PLAYER.hpPerLevel; }
   get attack() { return PLAYER.baseAttack + (this.state.level - 1) * PLAYER.attackPerLevel; }
   reward(exp: number, gold: number, kill = true) {
-    this.state.exp += exp; this.state.gold += gold; if (kill) this.state.kills++;
-    let levels = 0;
-    while (this.state.exp >= requiredExp(this.state.level) && this.state.level < 100) { this.state.exp -= requiredExp(this.state.level); this.state.level++; levels++; }
-    return levels;
+    this.state.exp = Math.min(Number.MAX_SAFE_INTEGER,this.state.exp+exp);
+    this.state.gold = Math.min(Number.MAX_SAFE_INTEGER,this.state.gold+gold);
+    if (kill) this.state.kills++;
+    this.state.exam=readExam(this.state.exam,this.state);
   }
 }

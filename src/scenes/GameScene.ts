@@ -1,3 +1,5 @@
+import {openPromotion} from '../ui/PromotionExam';
+import {examEligible} from '../education/promotion';
 import {DIGITAL_ARENA,VirusChallenge,virusConfig} from '../education/virus';
 import {bossReady} from '../education/stage1';
 import {Virus} from '../entities/Virus';
@@ -49,6 +51,7 @@ export class GameScene extends Phaser.Scene {
   preload() { preloadApprentice(this); }
   create(data: { map?: MapData; hp?: number; message?: string } = {}) {
     this.combatElapsed=0;this.virus=undefined;this.challenge=undefined;this.virusStatus=undefined;
+    this.hud.onPromotion=()=>this.promotionExam();
     this.loot.clear();
     this.map = data.map ?? FOREST;
     this.finished = false; this.climbing = undefined; this.chest = undefined; this.chestPrompt = undefined; this.measurement = undefined;
@@ -188,13 +191,22 @@ export class GameScene extends Phaser.Scene {
       const kills=q && this.progress.state.journal[q.id];
       if(q && typeof kills==='number')this.progress.state.journal[q.id]=Math.min(q.target,kills+1);
       this.dropLoot(enemy);
-      const levels = this.progress.reward(enemy.stats.exp, enemy.stats.gold);
+      this.progress.reward(enemy.stats.exp, enemy.stats.gold);
       this.combat.float(enemy.x, enemy.y - 70, `+${enemy.stats.exp} EXP · +${enemy.stats.gold} G`);
-      if (levels) { this.player.hp = this.progress.maxHp; this.combat.float(this.player.x, this.player.y - 80, 'LEVEL UP!', '#f3d98b'); this.hud.notice(`레벨 ${this.progress.state.level} 달성! 체력과 공격력이 올랐습니다.`); }
-      else this.hud.notice(`${enemy.stats.name} 처치 · 경험치 +${enemy.stats.exp}, 골드 +${enemy.stats.gold}`);
+      this.hud.notice(`${enemy.stats.name} 처치 · 경험치 +${enemy.stats.exp}, 골드 +${enemy.stats.gold}`);
       if(q && !wasReady && ready(this.progress.state,q))this.hud.notice('목표 달성 · '+q.name+' (Q: 보상 수령)');
       this.hud.saveStatus(this.save.save(this.progress.state)); this.refresh();
     },this.progress.state.tool,()=>this.challenge?.multiplier(this.combatElapsed)??1);
+  }
+  private promotionExam(){
+    if(!this.scene.isActive()||!this.player.hp||!examEligible(this.progress.state)||document.querySelector('dialog[open]'))return;
+    this.player.setVelocity(0).setAccelerationX(0);this.scene.pause();this.input.keyboard!.enabled=false;
+    let leveled=false;
+    openPromotion(this.progress.state,next=>{const ok=this.save.save(next);this.hud.saveStatus(ok);return ok},()=>{
+      this.input.keyboard!.resetKeys();this.input.keyboard!.enabled=true;this.scene.resume();this.game.canvas.focus();
+      if(leveled){this.combat.float(this.player.x,this.player.y-80,'LEVEL UP!','#f3d98b');this.hud.notice(`승급 시험 합격 · 게임 Lv.${this.progress.state.level}`)}
+      this.refresh();
+    },()=>{leveled=true;this.player.hp=this.progress.maxHp;this.refresh()});
   }
   private virusQuiz(){
     if(!this.player.hp || document.querySelector('dialog[open]'))return;

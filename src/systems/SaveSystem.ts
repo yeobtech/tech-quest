@@ -1,3 +1,4 @@
+import {readExam} from '../education/promotion';
 import {readStage1} from '../education/stage1';
 import {earned,readJournal} from '../data/quests';
 import {readInventory} from '../data/materials';
@@ -17,6 +18,7 @@ export class SaveSystem {
       const result = { ...newProgress(), inventory:readInventory(p.inventory), level: p.level, exp: p.exp, gold: p.gold, kills: p.kills, wardrobe: readWardrobe(p.wardrobe) };
       if (['입문','탐구','설계','제작'].includes(p.learning?.rank) && Array.isArray(p.learning.completedMissionIds) && p.learning.completedMissionIds.every((v:unknown)=>typeof v==='string')) result.learning=p.learning;
       result.stage1=readStage1(p.stage1);
+      result.exam=readExam(p.exam,result);
       result.factoryCleared=p.factoryCleared===true;
       result.journal=readJournal(p.journal);
       result.achieved=Array.isArray(p.achieved)?p.achieved:[];
