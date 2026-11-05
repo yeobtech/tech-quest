@@ -1,3 +1,4 @@
+import {openCertification} from './Certification';
 import {openLearning} from './Learning';
 import {canUse, nipperLesson, tools, type ActiveTool} from '../data/tools';
 import type {Progress} from '../systems/ProgressionSystem';
@@ -35,6 +36,7 @@ export function openToolBench(state:Progress, greeting:string, save:()=>boolean,
     const studyButton=document.createElement('button');studyButton.textContent='스테이지 1 · 디지털 기술자 훈련소';
   panel.querySelector('[data-close]')!.before(studyButton);
   studyButton.onclick=()=>openLearning(state,studySave??(()=>false),()=>{},boss?()=>{panel.addEventListener('close',boss,{once:true});panel.close()}:undefined);
+  if(state.stage1.bossCleared){const certification=document.createElement('button');certification.textContent='디지털 기술자 실습 인증';panel.querySelector('[data-close]')!.before(certification);certification.onclick=()=>openCertification(state,studySave??(()=>false),()=>{})}
   const mission=document.createElement('button');mission.textContent='교관 의뢰 · 고장 난 온습도 관측소';
   panel.querySelector('[data-close]')!.before(mission);
   mission.onclick=async()=>{mission.disabled=true;try{

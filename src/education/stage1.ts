@@ -9,7 +9,7 @@ export const lessonDone=(s:Stage1Progress,level:number)=>knowledgeDone(s,level)&
 export function learningLevel(s:Stage1Progress){return lessons.find(l=>!lessonDone(s,l.level))?.level??10}
 export const bossReady=(s:Stage1Progress)=>s.accepted&&lessons.every(l=>lessonDone(s,l.level));
 export function readStage1(raw:any):Stage1Progress {
- const s=newStage1();s.accepted=raw?.accepted===true;
+ const s=newStage1();s.accepted=raw?.accepted===true;s.bossCleared=raw?.bossCleared===true;
  s.examCredits=lessons.flatMap(l=>l.questions).filter(q=>Array.isArray(raw?.examCredits)&&raw.examCredits.includes(q.id)).map(q=>q.id);
  if(!s.accepted)return s;
  for(const l of lessons){
@@ -20,7 +20,8 @@ export function readStage1(raw:any):Stage1Progress {
   if(s.activities[l.level] && typeof a?.review?.id==='string' && typeof a.review.teacherId==='string' && typeof a.review.approvedAt==='string')s.activities[l.level].review={id:a.review.id,teacherId:a.review.teacherId,approvedAt:a.review.approvedAt,verification:'pending'};
   if(!lessonDone(s,l.level))break;
  }
- s.bossCleared=bossReady(s)&&raw?.bossCleared===true;return s;
+ // Preserve historical boss/stage-2 unlock even if old lesson evidence is incomplete.
+ return s;
 }
 export type StudyAction={kind:'accept'}|{kind:'answer';id:string;choice:string}|{kind:'submit';level:number;text:string};
 export function study(p:Progress,a:StudyAction,save:(p:Progress)=>boolean):'saved'|'wrong'|'blocked'|'failed'{

@@ -1,3 +1,4 @@
+import {openCertification} from '../ui/Certification';
 import {openPromotion} from '../ui/PromotionExam';
 import {examEligible} from '../education/promotion';
 import {DIGITAL_ARENA,VirusChallenge,virusConfig} from '../education/virus';
@@ -213,9 +214,18 @@ export class GameScene extends Phaser.Scene {
     this.player.setVelocity(0).setAccelerationX(0);this.scene.pause();this.input.keyboard!.enabled=false;
     openVirusQuiz(this.challenge!,()=>this.combatElapsed,()=>{this.input.keyboard!.resetKeys();this.input.keyboard!.enabled=true;this.scene.resume();this.game.canvas.focus()});
   }
+  private practicalCertification(){
+    if(document.querySelector('dialog[open]'))return;
+    this.player.setVelocity(0).setAccelerationX(0);this.scene.pause();this.input.keyboard!.enabled=false;
+    openCertification(this.progress.state,next=>{const ok=this.save.save(next);this.hud.saveStatus(ok);return ok},()=>{
+      this.input.keyboard!.resetKeys();this.input.keyboard!.enabled=true;this.scene.resume();this.game.canvas.focus();this.refresh();
+    });
+  }
   private finishDigital(){
     const result=this.progress.clearDigital(next=>this.save.save(next));
     if(result==='failed'){this.hud.notice('보상 저장 실패 · E로 다시 저장하세요.');return}
+    if(result==='blocked')return;
+    this.time.delayedCall(0,()=>this.practicalCertification());
     this.refresh();this.hud.notice(result==='first'?`오류 바이러스 복구! ${virusConfig.title} · EXP +${virusConfig.exp} · ${virusConfig.gold}G · 스테이지 2 해금 (준비 중). B: 마을`:'복구 완료 · 최초 보상은 이미 받았습니다. B: 마을');
   }
   private drawDigital(){
