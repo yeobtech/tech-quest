@@ -1,8 +1,38 @@
-.touch-controls{display:none;padding:10px;background:#19382e;border:1px solid #6b865f;border-radius:9px;margin-top:8px;user-select:none;-webkit-user-select:none}
-.touch-controls p{font-size:12px;margin:0 0 8px;color:#cfdebf}
-.touch-row{display:flex;justify-content:space-between;gap:16px}.touch-controls [data-pad]{display:grid;grid-template-columns:repeat(3,48px);gap:5px}.touch-controls [data-actions]{display:grid;grid-template-columns:repeat(2,minmax(64px,1fr));gap:5px;max-width:250px;flex:1}.touch-controls [data-actions] button:last-child{grid-column:1/-1}
-.touch-controls button{touch-action:none;min-height:46px;min-width:44px;border:1px solid #a9c58b;background:#355842;color:#f0f5db;border-radius:8px;font:700 14px system-ui;cursor:pointer;-webkit-touch-callout:none}
-.touch-controls [data-key=Z]{background:#78503c}.touch-controls [data-key=SPACE]{background:#426a76}.touch-controls button.held,.touch-controls button:active{background:#b8d782;color:#19382e;box-shadow:inset 0 2px 5px #0005}.touch-controls [data-menu]{display:flex;gap:6px;margin-top:8px}.touch-controls [data-menu] button{flex:1;font-size:12px}
-.touch-toggle{font:12px system-ui!important;padding:6px 10px!important;min-height:36px}.touch-controls.force-show{display:block}.touch-controls.force-hide{display:none}body:has(dialog[open]) .touch-controls{visibility:hidden}
-@media(any-pointer:coarse),(max-width:900px){.touch-controls{display:block}.mission{display:none}.game-shell{border-radius:6px}footer{flex-wrap:wrap;gap:12px;line-height:2.5}.below{display:none}.world-heading{margin-bottom:8px}.player-panel{top:36px}#notice{max-width:65%}header{height:48px}main{padding:8px}.brand{font-size:21px}}
-@media(max-height:500px) and (orientation:landscape){header,.world-heading,.below,footer,.touch-controls p{display:none}main{display:grid;grid-template-columns:minmax(0,1fr) 240px;gap:6px;padding:4px}.game-shell{max-height:calc(100dvh - 8px);align-self:center}.touch-controls{margin:0;padding:6px;align-self:center}.touch-row{flex-wrap:wrap;gap:6px}.touch-controls [data-pad]{grid-template-columns:repeat(3,1fr);width:100%}.touch-controls [data-actions]{max-width:none}.touch-controls [data-menu]{flex-wrap:wrap}.touch-controls [data-menu] button{flex-basis:40%}.touch-toggle{grid-column:2}.player-panel{transform:scale(.55);top:32px}.top-overlay{font-size:9px}}
+/* Controls share the game viewport; transparent gaps still reach the canvas. */
+.touch-controls{display:none;position:absolute;inset:0;z-index:12;pointer-events:none;user-select:none;-webkit-user-select:none}
+.touch-controls p{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);margin:0;color:#e6eedb;font-size:11px;white-space:nowrap;text-shadow:0 1px 3px #000}
+.touch-controls button,.touch-toggle{pointer-events:auto;touch-action:none;min-height:44px;min-width:44px;border:1px solid #dce9c78c;background:#18372c8c;color:#fffce9;font:700 13px system-ui;cursor:pointer;-webkit-touch-callout:none;box-shadow:inset 0 1px 2px #fff2,0 2px 5px #0003;text-shadow:0 1px 3px #000}
+.touch-controls button{position:absolute;border-radius:50%;padding:4px}
+.touch-controls button.held,.touch-controls button:active{background:#bedb8be6;color:#19382e;text-shadow:none;box-shadow:0 0 0 3px #d5ed9d55}
+.touch-controls button:focus-visible,.touch-toggle:focus-visible{outline:3px solid #f4e6a3;outline-offset:2px}
+.touch-controls [data-pad]{position:absolute;left:max(14px,env(safe-area-inset-left));bottom:max(24px,env(safe-area-inset-bottom));width:154px;height:154px;border:1px solid #e4eed45c;border-radius:50%;background:#102b253d;box-shadow:inset 0 0 0 8px #eef8d90a}
+.touch-controls [data-pad] button{width:48px;height:48px;font-size:22px;background:#28463b80}
+.touch-controls [data-key=LEFT]{left:0;top:53px}.touch-controls [data-key=RIGHT]{right:0;top:53px}.touch-controls [data-key=UP]{top:0;left:53px}.touch-controls [data-key=DOWN]{bottom:0;left:53px}
+.touch-controls [data-pad] [data-key=SHIFT]{left:55px;top:55px;width:44px;height:44px;font-size:11px;border-color:#dde9ce40;background:#19382e50}
+.touch-controls [data-actions]{position:absolute;right:max(16px,env(safe-area-inset-right));bottom:max(24px,env(safe-area-inset-bottom));width:166px;height:150px}
+.touch-controls [data-key=Z]{left:0;bottom:0;width:78px;height:78px;font-size:18px;background:#795035a6;border:2px solid #f2d29caa}
+.touch-controls [data-key=SPACE]{right:0;bottom:20px;width:66px;height:66px;font-size:16px;background:#355f6caa;border-color:#c9e9e6aa}
+.touch-controls [data-key=E]{right:24px;top:0;width:64px;height:48px;border-radius:24px;font-size:12px}
+.touch-controls [data-menu]{position:absolute;right:64px;top:max(10px,env(safe-area-inset-top));display:flex;gap:6px}
+.touch-controls [data-menu] button{position:static;min-width:44px;min-height:44px;padding:5px 8px;border-radius:12px;font-size:11px}
+.touch-toggle{position:absolute;right:10px;top:max(10px,env(safe-area-inset-top));z-index:13;border-radius:12px;font-size:11px;padding:4px}
+.touch-controls.force-show{display:block}.touch-controls.force-hide{display:none}body:has(dialog[open]) .touch-controls,body:has(dialog[open]) .touch-toggle{visibility:hidden}
+@media(any-pointer:coarse),(max-width:900px){
+.touch-controls{display:block}.mission,.below{display:none}header{height:48px}main{padding:8px}.brand{font-size:21px}.world-heading{margin-bottom:8px}
+.game-shell{aspect-ratio:4/5;border-radius:8px}.player-panel{top:64px;left:10px;transform:scale(.6);transform-origin:top left}
+.top-overlay{top:14px;left:10px}.top-overlay span:last-child{display:none}.top-overlay span:first-child{font-size:9px;padding:5px}
+#notice{left:50%;right:auto;bottom:185px;transform:translateX(-50%);max-width:85%;width:max-content;font-size:10px;text-align:center}
+footer{flex-wrap:wrap;gap:12px;line-height:2.5}.touch-controls [data-menu]{gap:3px}.touch-controls [data-menu] button{padding:3px}
+}
+@media(max-width:360px){
+.touch-controls [data-pad]{left:6px;transform:scale(.88);transform-origin:bottom left}
+.touch-controls [data-actions]{right:6px;transform:scale(.88);transform-origin:bottom right}
+.touch-controls [data-menu] button{font-size:10px}.touch-controls p{font-size:9px}
+}
+@media(max-height:600px) and (orientation:landscape){
+header,.world-heading,.below,footer,main>button{display:none}main{display:block;max-width:none;padding:0}
+.game-shell{width:100%;height:100dvh;max-height:100dvh;aspect-ratio:auto;border:0;border-radius:0}
+.touch-controls{display:block}.player-panel{top:48px;left:max(12px,env(safe-area-inset-left));transform:scale(.65)}
+.top-overlay{top:10px;left:max(12px,env(safe-area-inset-left))}.top-overlay span:last-child{display:none}
+#notice{bottom:28px;max-width:32%;font-size:10px}.touch-controls p{bottom:8px;font-size:10px}
+}
