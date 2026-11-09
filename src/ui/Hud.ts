@@ -1,14 +1,17 @@
 import {examEligible} from '../education/promotion';
+import {TouchControls} from './TouchControls';
 import {learningLevel} from '../education/stage1';
 import { requiredExp } from '../data/config';
 import type { ProgressionSystem } from '../systems/ProgressionSystem';
 export class Hud {
   private root: HTMLElement;
   private digital=false;
+  readonly touch:TouchControls;
   onPromotion?:()=>void;
   constructor() {
     document.querySelector('#app')!.innerHTML = `<header><a class="brand" href="./">T<span>✦</span>Q <b>TECH QUEST</b></a><div class="edition">기술을 배우는 작은 모험 <span>PROTOTYPE 01</span></div></header><main><div class="world-heading"><div><small>WORLD 01 / BEGINNER'S FOREST</small><h1>초보자의 숲 <span>탐험 중</span></h1></div><p>첫 모험은 작은 한 걸음부터.</p></div><section class="game-shell"><div id="game"></div><div class="top-overlay"><span>◈ 초보자의 숲</span><span>안전한 학습 환경 · 로컬 플레이</span></div><div class="player-panel"><div class="avatar">⚒</div><div><div class="player-name">견습 기술자 <b id="level"></b></div><div class="meter-label"><span>HP</span><span id="hp"></span></div><div class="meter"><i id="hp-bar"></i></div><div class="meter-label"><span>EXP</span><span id="exp"></span></div><div class="meter exp"><i id="exp-bar"></i></div></div><div class="gold">● <strong id="gold"></strong><small>GOLD</small></div></div><div class="mission"><small>YOUR FIRST ADVENTURE</small><b>숲의 작은 수호자</b><p>몬스터를 사냥하며 조작을 익혀 보세요.</p><span id="kills"></span></div><div id="notice" role="status" aria-live="polite">숲에 오신 것을 환영합니다. Z로 공격해 보세요!</div><button id="focus-game">클릭하여 모험 시작 ↗</button></section><button id="promotion-exam" hidden>EXP 가득 참 · 승급 시험 시작</button><footer><div><kbd>A</kbd><kbd>D</kbd> 이동 <kbd>SHIFT</kbd> 걷기 <kbd>SPACE</kbd> 점프 <kbd>Z</kbd> 공격 <kbd>X</kbd> 발판 너비 측정 <kbd>E</kbd> 상호작용 <kbd>I</kbd> 가방 <kbd>Q</kbd> 퀘스트</div><span id="save-status">진행 상황 자동 저장</span></footer><div class="below"><span>01 <b>탐험하고</b></span><span>02 <b>도전하고</b></span><span>03 <b>성장하세요</b></span><p>기술 학습과 만나는 나만의 모험, TECH QUEST</p></div></main>`;
     this.root = document.querySelector('.game-shell')!;
+    this.touch=new TouchControls();
     document.querySelector<HTMLButtonElement>('#promotion-exam')!.onclick=()=>this.onPromotion?.();
     document.querySelector('#focus-game')!.addEventListener('click', () => { document.querySelector('canvas')?.focus(); document.querySelector('#focus-game')?.classList.add('hidden'); });
   }

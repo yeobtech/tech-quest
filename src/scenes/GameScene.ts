@@ -50,8 +50,15 @@ export class GameScene extends Phaser.Scene {
   private coordinates?: Phaser.GameObjects.Text;
   private measurement?: Phaser.GameObjects.Container;
   constructor(private hud: Hud) { super('forest'); }
+  private down(key:string){return this.keys[key].isDown || this.hud.touch.down(key) || (key==='Z' && this.hud.touch.consume(key))}
+  private pressed(key:string){const touch=this.hud.touch.consume(key);return Phaser.Input.Keyboard.JustDown(this.keys[key]) || touch}
   preload() { preloadApprentice(this); }
   create(data: { map?: MapData; hp?: number; message?: string } = {}) {
+    this.hud.touch.reset();
+    this.events.on('pause',this.hud.touch.reset,this.hud.touch);
+    this.events.once('shutdown',()=>{this.hud.touch.reset();this.events.off('pause',this.hud.touch.reset,this.hud.touch)});
+    this.events.on('postupdate',this.hud.touch.endFrame,this.hud.touch);
+    this.events.once('shutdown',()=>this.events.off('postupdate',this.hud.touch.endFrame,this.hud.touch));
     this.combatElapsed=0;this.virus=undefined;this.challenge=undefined;this.virusStatus=undefined;
     this.hud.onPromotion=()=>this.promotionExam();
     this.loot.clear();
@@ -104,10 +111,10 @@ export class GameScene extends Phaser.Scene {
     if (!this.player) return;
     if(this.examPrompt.shouldOpen(this.progress.state,!!this.player.hp&&!document.querySelector('dialog[open]'))){this.promotionExam();return}
     this.combatElapsed+=delta;
-    if(Phaser.Input.Keyboard.JustDown(this.keys.Q) && !document.querySelector('dialog[open]')){
+    if(this.pressed('Q') && !document.querySelector('dialog[open]')){
       this.questBoard();return;
     }
-    if(Phaser.Input.Keyboard.JustDown(this.keys.I) && !document.querySelector('dialog[open]')){
+    if(this.pressed('I') && !document.querySelector('dialog[open]')){
       this.scene.pause();this.input.keyboard!.enabled=false;
       openInventory(this.progress.state.inventory,()=>{
         this.input.keyboard!.resetKeys();this.input.keyboard!.enabled=true;
@@ -116,13 +123,13 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     if(this.player.hp)this.collectLoot();
-    this.player.move(this.keys.A.isDown || this.keys.LEFT.isDown, this.keys.D.isDown || this.keys.RIGHT.isDown, Phaser.Input.Keyboard.JustDown(this.keys.SPACE), !!this.climbing, this.keys.SHIFT.isDown);
-    if (Phaser.Input.Keyboard.JustDown(this.keys.X)) this.measurePlatform();
-    const interact = Phaser.Input.Keyboard.JustDown(this.keys.E);
+    this.player.move(this.down('A') || this.down('LEFT'), this.down('D') || this.down('RIGHT'), this.pressed('SPACE'), !!this.climbing, this.down('SHIFT'));
+    if (this.pressed('X')) this.measurePlatform();
+    const interact = this.pressed('E');
     if(this.map===DIGITAL_ARENA){
       const c=this.challenge!;
       this.virusStatus?.setText((c.shielded?'◇ 방어막 활성 · 핵심 문제 필요':'✓ 방어막 해제')+' · '+(c.multiplier(this.combatElapsed)>1?'공격 +50% '+Math.ceil((c.buffUntil-this.combatElapsed)/1000)+'초':'기본 공격력')+'\nE: 복구 퀴즈 / 처치 후 보상 · B: 마을로 복귀');
-      if(Phaser.Input.Keyboard.JustDown(this.keys.B)){this.travel(VILLAGE);return}
+      if(this.pressed('B')){this.travel(VILLAGE);return}
       if(interact){if(this.virus&&!this.virus.active)this.finishDigital();else this.virusQuiz();return}
     }
     if(this.factory){
@@ -187,7 +194,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.enemies.forEach(e => e.tick());
     this.coordinates?.setText(`x ${Math.round(this.player.x)}  y ${Math.round(this.player.y)}`);
-    if (this.keys.Z.isDown) this.combat.attack(this.player, this.enemies, this.progress.attack, enemy => {
+    if (this.down('Z')) this.combat.attack(this.player, this.enemies, this.progress.attack, enemy => {
       if(enemy===this.virus){this.finishDigital();return}
       const q=quests.find(q=>q.id===enemy.kind);
       const wasReady=q && ready(this.progress.state,q);
@@ -307,8 +314,8 @@ export class GameScene extends Phaser.Scene {
   private refresh() { this.hud.update(this.progress, this.player.hp); }
   private useLadders(interact:boolean){
     const body = this.player.body as Phaser.Physics.Arcade.Body;
-    if (this.keys.DOWN.isDown || this.keys.S.isDown) this.grabLadder(1);
-    else if (interact || this.keys.UP.isDown || this.keys.W.isDown) this.grabLadder(-1);
+    if (this.down('DOWN') || this.down('S')) this.grabLadder(1);
+    else if (interact || this.down('UP') || this.down('W')) this.grabLadder(-1);
     if (this.climbing) {
       if (this.ladderDirection < 0 ? body.bottom <= this.climbing.top : body.bottom >= this.climbing.bottom) {
         this.player.setVelocity(0);
