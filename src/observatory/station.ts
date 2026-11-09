@@ -24,6 +24,20 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void,practice
  <p data-link role="status"></p><p data-last>마지막 정상 USB 측정 —</p><output data-reading>온도 — °C · 습도 — %</output>
  <h3>3 · 방어막 진단</h3><label>입력 → 처리 → 출력에 해당하는 순서는?<select data-answer><option value="">선택하세요</option><option>USB로 출력 → 센서 측정 → 보드에서 검사</option><option>${principle}</option></select></label>
  <button data-unlock>방어막 해제</button><p data-result role="status"></p><p><a href="./lab/index.html" target="_blank" rel="noopener">자유 실험실 열기 ↗</a></p><small>교육용 가상 모델 · 실물은 핀 표기를 확인하세요.</small></div></aside></div>`;
+ const intro=document.createElement('section');intro.className='station-intro';
+ intro.innerHTML=`<small>실습을 시작하기 전에</small><h3>온도와 습도를 다시 읽을 수 있게 도와주세요.</h3>
+ <p>기술 교관의 관측소 복구 실습입니다. 게임은 잠시 멈췄어요. 먼저 화면 속 DHT11 센서와 보드를 선 3개로 연결합니다.</p>
+ <ol><li><b>가상 배선</b> — 이미 놓인 파란 DHT11의 접점을 보드 접점까지 끌어 연결하세요.</li><li><b>배선 검사</b> — 연결한 뒤 ‘연결 확인·검사’에서 잘못된 곳을 확인하세요.</li>${practice?.mode==='wiring'?'':'<li><b>실물 측정</b> — 장비와 펌웨어가 준비되면 USB로 정상 측정 3회를 확인합니다. 장비가 없다면 가상 배선까지만 연습해도 됩니다.</li>'}</ol>
+ <p class="station-pin-guide">VCC → 3V3 · GND → GND · DATA → GPIO21</p>
+ <p>${practice?'이 실습에서는 펌웨어와 같은 GPIO21로 연결합니다.':'GPIO21은 현재 펌웨어의 DATA 핀입니다. 다른 사용 가능한 GPIO도 펌웨어 설정과 일치시키면 사용할 수 있습니다.'}</p>
+ <p>지금은 다른 부품을 추가하지 않아도 됩니다. 그만하려면 오른쪽 위 복귀 버튼을 누르세요.</p><button data-begin>1단계 · 가상 배선 시작</button>`;
+ const workspace=d.querySelector<HTMLElement>('.station-body')!;workspace.hidden=true;
+ workspace.before(intro);
+ const guide=document.createElement('div');guide.className='station-guide';guide.hidden=true;
+ guide.innerHTML='<div><strong data-next role="status"></strong><p>VCC → 3V3 · GND → GND · DATA → GPIO21. 센서 접점에서 보드 접점까지 드래그하거나 양쪽 접점을 차례로 누르세요.</p></div><button data-next-action>연결 확인·검사</button>';
+ workspace.before(guide);
+ const help=document.createElement('button');help.textContent='실습 안내';help.hidden=true;
+ d.querySelector('[data-toggle]')!.before(help);
  document.body.append(d);d.showModal();
  const get=<T extends HTMLElement>(k:string)=>d.querySelector<T>('[data-'+k+']')!;
  const btn=(k:string)=>get<HTMLButtonElement>(k);
@@ -37,13 +51,17 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void,practice
    missionPanel.hidden=!visible;
    get('board').hidden=visible;
    btn('toggle').setAttribute('aria-expanded',String(visible));
-   btn('toggle').textContent=visible?'배선 실습으로 돌아가기':'미션 검사 · '+Object.keys(w).length+'/3';
+   btn('toggle').textContent=visible?'배선 실습으로 돌아가기':'연결 확인·검사 · '+Object.keys(w).length+'/3';
  }
  btn('toggle').onclick=()=>showMission(missionPanel.hidden);
  const completed=()=>Object.values(badges).some(id=>ids.includes(id));
  let board:ReturnType<typeof makeBoard>|undefined;
  const controls=(label:string,fn:()=>void)=>{const b=document.createElement('button');b.textContent=label;b.onclick=fn;return b};
  function refresh(){
+   const count=Object.keys(w).length;
+   get('next').textContent=!m.wired?(count<3?'지금 할 일 · 선 3개 연결 ('+count+'/3)':'지금 할 일 · 연결 확인·검사에서 배선 검사 버튼을 누르세요.'):
+     practice?.mode==='wiring'?'가상 배선 검사 통과 · 결과 메시지를 확인하고 실습 기록으로 돌아가세요.':
+     m.count>=3?'실제 정상 측정 3회 확인 · 검사 화면에서 결과를 확인하세요.':'배선 검사 통과 · 장비가 준비되면 실물 배선을 확인하고 USB를 연결하세요.';
    const safe=get<HTMLInputElement>('safe').checked;
    btn('connect').disabled=!navigator.serial||!window.isSecureContext||!safe||!m.wired||!!controller||!!mock;
    btn('stop').disabled=!controller&&!mock;btn('mock').disabled=!!controller||!!mock||!m.wired;
@@ -91,7 +109,7 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void,practice
  }
  for(const [prefix,pins] of [['B',outputs],['S',inputs]] as const){const row=document.createElement('div');row.append(prefix==='B'?'KS5034 ':'DHT11 ');for(const pin of pins){const id=prefix+':'+pin;const button=controls(pin,()=>choose(id));button.dataset.pin=id;row.append(button);}get('pins').append(row)}
  btn('reset').onclick=()=>{for(const pin of inputs)delete w[pin];selected='';inspect('단자를 선택하세요','보드 또는 센서의 핀을 선택하세요.');get('selected').textContent='';get('pins').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed','false'));changed()};
- board=makeBoard(get('board'),state=>{
+ function loadBoard(){board=makeBoard(get('board'),state=>{
    const next=JSON.stringify(state);
    if(next===lastCircuit)return;
    lastCircuit=next;shared=true;otherWires=state.otherWires;
@@ -102,7 +120,15 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void,practice
      else{delete w[pin];delete locations[pin]}
    }
    changed();
- });
+ });}
+ btn('toggle').hidden=true;
+ btn('begin').onclick=()=>{
+   intro.hidden=true;workspace.hidden=false;guide.hidden=false;btn('toggle').hidden=false;help.hidden=false;
+   if(!board)loadBoard();showMission(false);help.focus();
+ };
+ help.onclick=()=>{intro.hidden=false;workspace.hidden=true;guide.hidden=true;btn('toggle').hidden=true;help.hidden=true;btn('begin').textContent='배선 실습 계속하기';btn('begin').focus()};
+ btn('next-action').onclick=()=>{showMission(true);btn('check').focus()};
+ btn('begin').focus();
  get('profile').onchange=changed;get<HTMLInputElement>('safe').onchange=()=>{if(!get<HTMLInputElement>('safe').checked)stop();refresh()};
  btn('check').onclick=()=>{stop();const msg=(practice?missionWiringError(w,get<HTMLSelectElement>('profile').value as Profile,otherWires):wiringError(w,get<HTMLSelectElement>('profile').value as Profile))??(otherWires?'관측소 검사에는 DHT11만 사용합니다. 다른 부품의 배선을 분리하세요.':null);m.setWired(!msg);
  get('wiremsg').textContent=msg?'⚠ '+msg:'✓ 가상 회로 정상 · 실물 펌웨어의 DATA_PIN을 '+w.DATA!.slice(4)+'로 설정하세요.';if(!msg&&practice)get('wiremsg').textContent=practice.onWiring({...w},get<HTMLSelectElement>('profile').value as Profile,otherWires)?'✓ 가상 배선 결과 저장 완료 · 실물 검증과 별도':'저장 실패 · 배선 검사 버튼으로 다시 저장하세요.';refresh()};

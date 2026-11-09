@@ -9,3 +9,12 @@
 .station .station-body>[data-board],.station .station-body>aside{flex:1;min-height:0;height:auto}
 .station .station-body>aside{overflow:auto}
 .station .station-body [hidden]{display:none}
+.station [hidden]{display:none!important}
+.station .station-intro{overflow:auto;max-width:780px;width:100%;margin:auto;padding:28px;color:#e9eed8;line-height:1.75}
+.station .station-intro h3{font-size:24px;margin:8px 0 16px;color:#f0e7bc}
+.station-intro small{color:#bedaca}.station-intro ol{padding-left:24px}.station-intro li{margin:14px 0}
+.station .station-pin-guide{background:#294d42;border:1px solid #799b75;padding:12px;font-weight:700;border-radius:6px}
+.station [data-begin]{padding:12px 18px;background:#c4dc91;color:#213d2d;font-weight:700}
+.station-guide{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 18px;background:#edf1df;color:#284532;border-bottom:1px solid #b7c8a1}
+.station-guide strong{font-size:16px}.station-guide p{font-size:14px;margin:4px 0 0}.station-guide button{flex-shrink:0}
+@media(max-width:700px){.station-head{flex-wrap:wrap}.station .station-intro{padding:16px}.station .station-intro h3{font-size:21px}.station-guide{padding:8px;flex-wrap:wrap}.station-guide p{font-size:12px}}
