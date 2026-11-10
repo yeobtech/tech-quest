@@ -50,7 +50,7 @@ export class GameScene extends Phaser.Scene {
   private coordinates?: Phaser.GameObjects.Text;
   private measurement?: Phaser.GameObjects.Container;
   constructor(private hud: Hud) { super('forest'); }
-  private down(key:string){return this.keys[key].isDown || this.hud.touch.down(key) || (key==='Z' && this.hud.touch.consume(key))}
+  private down(key:string){return this.keys[key].isDown || this.hud.touch.down(key) || (['Z','UP','DOWN'].includes(key) && this.hud.touch.consume(key))}
   private pressed(key:string){const touch=this.hud.touch.consume(key);return Phaser.Input.Keyboard.JustDown(this.keys[key]) || touch}
   preload() { preloadApprentice(this); }
   create(data: { map?: MapData; hp?: number; message?: string } = {}) {
@@ -109,6 +109,7 @@ export class GameScene extends Phaser.Scene {
   }
   update(_time:number,delta:number) {
     if (!this.player) return;
+    this.updateTouchAction();
     if(this.examPrompt.shouldOpen(this.progress.state,!!this.player.hp&&!document.querySelector('dialog[open]'))){this.promotionExam();return}
     this.combatElapsed+=delta;
     if(this.pressed('Q') && !document.querySelector('dialog[open]')){
@@ -312,6 +313,45 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(3500, () => { if (overlay.active) overlay.destroy(); });
   }
   private refresh() { this.hud.update(this.progress, this.player.hp); }
+  private updateTouchAction(){
+    const touch=this.hud.touch,body=this.player.body as Phaser.Physics.Arcade.Body;
+    const x=this.player.x,feet=body.bottom;
+    let label='대상 없음',key='E',enabled=false;
+    const action=(text:string,input='E')=>{label=text;key=input;enabled=true};
+    try{
+    if(!this.player.hp)return;
+    if(this.map===DIGITAL_ARENA){action(this.virus&&!this.virus.active?'보상 받기':'복구 퀴즈');return}
+    if(this.map===VILLAGE){
+      if(Math.abs(x-VILLAGE.spawn.x)<60)action('숲으로 이동');
+      else if(Math.abs(x-factoryGate)<55)action('공장 입장');
+      else if(Math.abs(x-BENCH_X)<65)action('제작하기');
+      else if(Math.abs(x-BOARD_X)<65)action('퀘스트 보기');
+      else{const npc=VILLAGERS.find(n=>Math.abs(x-n.x)<70&&Math.abs(this.player.y-602)<65);if(npc)action(npc.shop?'상점 열기':'대화하기')}
+      return;
+    }
+    if(this.map===FOREST){
+      if(Math.abs(x-FOREST_GATE)<55)action('마을로 이동');
+      else if(Math.abs(x-FOREST.spawn.x)<120)action('훈련장 입장');
+      return;
+    }
+    if(this.factory){
+      const near=(px:number,py:number)=>Math.abs(x-px)<58&&Math.abs(feet-py)<35;
+      if(near(switchX,floorY(4))){action('차단기 조작');return}
+      if(near(exitX,floorY(5))){action('제어실 복구');return}
+      if(near(230,floorY(0))){action('마을로 이동');return}
+    }else if(this.map===TRAINING){
+      const near=(p:{x:number;y:number})=>Math.abs(body.center.x-p.x)<55&&Math.abs(feet-p.y)<42;
+      if(this.chest?.visible&&near(YARD.chest)){action('상자 열기');return}
+      if(!this.finished&&near(YARD.exit)){action('출구 이동');return}
+    }else return;
+    // Keep ladders reachable without adding vertical directions to the joystick.
+    const ladder=this.climbing??(this.factory?factoryLadders:YARD.ladders).find(l=>body.right>=l.x-32&&body.left<=l.x+32&&feet>=l.top-3&&feet<=l.bottom+3);
+    if(ladder){
+      const descend=this.climbing?this.ladderDirection<0:feet<=ladder.top+3;
+      action(descend?'내려가기':'올라가기',descend?'DOWN':'UP');
+    }
+    }finally{touch.setAction(label,key,enabled)}
+  }
   private useLadders(interact:boolean){
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     if (this.down('DOWN') || this.down('S')) this.grabLadder(1);

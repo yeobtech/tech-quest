@@ -15,7 +15,7 @@ export function setupViewer({T,scene,wiring,cam,orbit,renderer,canvas,categories
   function fit(direction){
     transition=null;
     bounds.makeEmpty();
-    for(const obj of scene.children)if(obj.visible&&!markers.includes(obj)&&(obj.isMesh||obj.isSprite||obj.isGroup))bounds.expandByObject(obj);
+    for(const obj of scene.children)if(obj.visible&&!obj.userData.excludeFromFit&&!markers.includes(obj)&&(obj.isMesh||obj.isSprite||obj.isGroup))bounds.expandByObject(obj);
     const center=bounds.getCenter(new T.Vector3()), corners=[];
     for(const x of [bounds.min.x,bounds.max.x])for(const y of [bounds.min.y,bounds.max.y])for(const z of [bounds.min.z,bounds.max.z])corners.push(new T.Vector3(x,y,z));
     direction.normalize();orbit.target.copy(center);

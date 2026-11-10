@@ -1,8 +1,12 @@
 import {installPalette} from './components/palette.js';
 import {createBoardContacts,boardContacts,terminalPoint} from './dht11.js';
 import { setupViewer } from './viewer.js';
+import {dhtHintSocket} from './wiringHints.js';
 import * as T from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {Line2} from 'three/addons/lines/Line2.js';
+import {LineGeometry} from 'three/addons/lines/LineGeometry.js';
+import {LineMaterial} from 'three/addons/lines/LineMaterial.js';
 const $=id=>document.getElementById(id), scene=new T.Scene(), canvas=document.querySelector('canvas');
 const renderer=new T.WebGLRenderer({canvas,antialias:true}); renderer.setPixelRatio(Math.min(devicePixelRatio,2));scene.background=new T.Color(0xe6eee8);
 const cam=new T.PerspectiveCamera(35,1,1,400), orbit=new OrbitControls(cam,canvas); orbit.enablePan=false;orbit.minDistance=38;orbit.maxDistance=200;
@@ -97,6 +101,36 @@ const select=$('parts');
 categories.forEach((part,index)=>select.add(new Option(part.name,index)));
 const reserved={1:'INA180',19:'USB OTG',20:'USB OTG',35:'MicroSD',36:'MicroSD',37:'MicroSD',39:'MicroSD',45:'RGB LED'};
 const wiring=new T.Group();scene.add(wiring);
+// Visual guidance only: never add hints to the circuit or picking targets.
+const wiringHints=new T.Group();wiringHints.userData.excludeFromFit=true;scene.add(wiringHints);
+const hintToggle=document.createElement('label');
+hintToggle.innerHTML='<input type="checkbox" checked> 배선 힌트';
+document.querySelector('.bar').append(hintToggle);
+const hintCheck=hintToggle.querySelector('input');
+hintCheck.onchange=()=>{wiringHints.visible=hintCheck.checked};
+const hintLegend=document.createElement('p');
+hintLegend.textContent='점선: 연결 힌트 · 실선: 연결 완료';
+hintLegend.title='VCC → 3V3 · GND → GND · DATA → GPIO21 (현재 펌웨어). 다른 GPIO를 사용할 때도 펌웨어와 번호를 맞추세요.';
+hintLegend.className='wiring-hint-legend';
+document.querySelector('.hint').after(hintLegend);
+function updateWiringHints(){
+  for(const line of [...wiringHints.children]){
+    wiringHints.remove(line);line.geometry.dispose();line.material.dispose();
+  }
+  const pins=partPins.filter(p=>p.userData.component==='dht11');
+  hintToggle.hidden=hintLegend.hidden=!pins.length;
+  for(const pin of pins){
+    const name=pin.userData.pin.label,key=dhtHintSocket(name,rail.value);
+    if(!key || partWires.has(pin.userData.id))continue;
+    const target=freeBoard.find(p=>p.userData.id==='B:'+key);
+    if(!target)continue;
+    const start=terminalPoint(pin),end=terminalPoint(target),mid=start.clone().lerp(end,.5);mid.y=12;
+    const curve=new T.CatmullRomCurve3([start,start.clone().add(new T.Vector3(3,0,0)),mid,end]);
+    const line=new Line2(new LineGeometry().setPositions(curve.getPoints(80).flatMap(p=>p.toArray())),
+      new LineMaterial({color:name==='VCC'?0xd75a50:name==='GND'?0x71828c:0xe9b632,linewidth:3,dashed:true,dashSize:1.1,gapSize:.8,transparent:true,opacity:.9,depthTest:false,depthWrite:false}));
+    line.computeLineDistances();line.renderOrder=5;line.raycast=()=>{};wiringHints.add(line);
+  }
+}
 function wire(start,end,color,label,sideExit=false){
   const mid=start.clone().lerp(end,.5);mid.y=11;
   const points=sideExit?[start,start.clone().add(new T.Vector3(3,0,0)),mid,end]:[start,mid,end];
@@ -108,6 +142,18 @@ function wire(start,end,color,label,sideExit=false){
 current=null;
 const inMission=new URLSearchParams(location.search).get('mode')==='observatory';
 const palette=installPalette({scene,cam,canvas,onPartsChange:refresh});
+const inspector=document.createElement('section');inspector.className='pin-inspector';
+let inspectorNode=$('pinName').previousElementSibling.previousElementSibling;
+while(inspectorNode){
+  const next=inspectorNode.nextElementSibling,done=inspectorNode.id==='info';
+  inspector.append(inspectorNode);if(done)break;inspectorNode=next;
+}
+document.querySelector('aside').prepend(inspector);
+$('info').textContent='보드나 센서의 접점을 누르면 이름과 역할이 여기에 표시됩니다.';
+const references=document.createElement('details');references.className='lab-references';
+references.innerHTML='<summary>참고 자료 보기</summary>';
+for(const detail of document.querySelectorAll('aside > details'))references.append(detail);
+document.querySelector('aside').append(references);
 const freePositions={...boardContacts};
 // Keep each physical socket distinct even when multiple headers share the same rail.
 const socketNames=new Map(Object.keys(freePositions).map(key=>[key,key]));
@@ -202,6 +248,7 @@ function refresh(){
   for(const address of partWires.keys())if(!live.has(address))partWires.delete(address);
   if(pending.includes('/')&&!live.has(pending))pending='';
   freeBoard.forEach(pin=>{pin.visible=partPins.length>0});
+  updateWiringHints();
   pinButtons.hidden=!partPins.some(p=>p.userData.component==='dht11');
   const hasSonar=partPins.some(p=>p.userData.component==='hc-sr04');
   $('levelShift').hidden=!hasSonar;

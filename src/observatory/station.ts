@@ -11,19 +11,19 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void,practice
  const d=document.createElement('dialog');d.className='workshop station';d.setAttribute('aria-labelledby','station-title');
  d.innerHTML=`<div class="station-head"><div><small>기술 교관 의뢰 · KS5034 LAB</small><h2 id="station-title">고장 난 온습도 관측소</h2></div><div><button data-toggle aria-expanded="false">미션 검사 · 0/3</button><button data-exit>실습 종료 · 마을로 복귀</button></div></div>
  <div class="station-body"><div data-board></div><aside aria-label="관측소 미션 검사" hidden>
- <p class="objective">DHT11의 전원·GND·DATA를 연결하세요.</p>
  <section data-fallback><h3>선택 단자</h3><strong data-inspect>단자를 선택하세요</strong><p data-details>보드에서 핀을 누르거나 아래 버튼으로 선택하세요.</p>
  <div data-pins></div><p data-selected aria-live="polite"></p></section>
- <h3>연결 목록 <span data-count></span></h3><div class="wire-key" aria-label="케이블 색상"><span>전원</span><span>접지</span><span>신호</span></div><div data-wires></div><button data-reset>배선 초기화</button>
- <h3>배선 검사</h3><label>가상 센서 사양 <select data-profile><option value="unknown">미확인</option><option value="3v3" selected>3.3V 호환 · DATA 풀업 3.3V</option><option value="5v">5V 전원 또는 DATA 풀업 5V</option></select></label>
- <button data-check>배선 검사</button><p data-wiremsg role="status"></p>
- <div data-hardware><div class="shield"><span class="golem" aria-hidden="true">▣ ▣</span><div><b>센서 오류 골렘</b><p data-shield></p></div></div>
- <h3>2 · 온습도 수신</h3><p>펌웨어는 2초 간격으로 전송합니다. 실습 장치 검증은 약 2초 간격(1.5~2.5초)의 정상 USB 데이터 3회를 확인합니다. 측정값을 특정 온도로 맞출 필요가 없습니다.</p><p>이번 실물 구성: KS5034 · DHT11 3핀 · VCC → 3V3, DATA → GPIO21, GND → GND. 5V DATA를 GPIO에 직접 연결하지 마세요.</p>
- <label><input type="checkbox" data-safe> 실물의 VCC·GND·DATA 배열, 3.3V 동작 및 DATA 풀업 3.3V를 확인함</label>
- <div><button data-connect>실제 USB 장치 연결</button> <button data-stop>연결 해제</button> <button data-mock>Mock 연습</button></div>
- <p data-link role="status"></p><p data-last>마지막 정상 USB 측정 —</p><output data-reading>온도 — °C · 습도 — %</output>
- <h3>3 · 방어막 진단</h3><label>입력 → 처리 → 출력에 해당하는 순서는?<select data-answer><option value="">선택하세요</option><option>USB로 출력 → 센서 측정 → 보드에서 검사</option><option>${principle}</option></select></label>
- <button data-unlock>방어막 해제</button><p data-result role="status"></p><p><a href="./lab/index.html" target="_blank" rel="noopener">자유 실험실 열기 ↗</a></p><small>교육용 가상 모델 · 실물은 핀 표기를 확인하세요.</small></div></aside></div>`;
+ <section class="station-step"><h3>1 · 배선 검사</h3><div class="station-step-actions"><label>센서 전압 <select data-profile><option value="unknown">미확인</option><option value="3v3" selected>3.3V · DATA 풀업 3.3V</option><option value="5v">5V 전원 / DATA 풀업</option></select></label>
+ <button data-check>배선 검사</button></div><p data-wiremsg role="status"></p>
+ <details><summary>연결 목록 <span data-count></span></summary><div class="wire-key" aria-label="케이블 색상"><span>전원</span><span>접지</span><span>신호</span></div><div data-wires></div><button data-reset>배선 초기화</button></details></section>
+ <div data-hardware><section class="station-step"><h3>2 · USB 연결 및 측정</h3>
+ <label class="station-safety"><input type="checkbox" data-safe> 실물 핀 배열·전원 3.3V·DATA 풀업 3.3V 확인</label>
+ <div class="station-step-actions"><button data-connect>실제 USB 연결</button> <button data-stop>연결 해제</button></div>
+ <p data-link role="status"></p><output data-reading>온도 — °C · 습도 — %</output><p data-last>마지막 정상 USB 측정 —</p>
+ <details><summary>연결 도움말 · Mock 연습</summary><p>DATA → GPIO21 · VCC → 3V3 · GND → GND. 5V DATA를 GPIO에 직접 연결하지 마세요.</p><p>2초 간격의 정상 USB 측정 3회로 검증합니다. Mock은 실제 측정에 포함되지 않습니다.</p><button data-mock>Mock 연습</button></details></section>
+ <section class="station-step" data-diagnosis><h3>3 · 방어막 진단</h3><div class="shield"><span class="golem" aria-hidden="true">▣ ▣</span><div><b>센서 오류 골렘</b><p data-shield></p></div></div>
+ <label>입력 → 처리 → 출력 순서<select data-answer><option value="">선택하세요</option><option>USB로 출력 → 센서 측정 → 보드에서 검사</option><option>${principle}</option></select></label>
+ <button data-unlock>방어막 해제</button></section><p data-result role="status"></p></div></aside></div>`;
  const intro=document.createElement('section');intro.className='station-intro';
  intro.innerHTML=`<small>실습을 시작하기 전에</small><h3>온도와 습도를 다시 읽을 수 있게 도와주세요.</h3>
  <p>기술 교관의 관측소 복구 실습입니다. 게임은 잠시 멈췄어요. 먼저 화면 속 DHT11 센서와 보드를 선 3개로 연결합니다.</p>
@@ -34,20 +34,21 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void,practice
  const workspace=d.querySelector<HTMLElement>('.station-body')!;workspace.hidden=true;
  workspace.before(intro);
  const guide=document.createElement('div');guide.className='station-guide';guide.hidden=true;
- guide.innerHTML='<div><strong data-next role="status"></strong><p>VCC → 3V3 · GND → GND · DATA → GPIO21. 센서 접점에서 보드 접점까지 드래그하거나 양쪽 접점을 차례로 누르세요.</p></div><button data-next-action>연결 확인·검사</button>';
+ guide.innerHTML='<div><strong data-next role="status"></strong><p>VCC → 3V3 · GND → GND · DATA → GPIO21</p></div><button data-next-action>연결 확인·검사</button>';
  workspace.before(guide);
  const help=document.createElement('button');help.textContent='실습 안내';help.hidden=true;
  d.querySelector('[data-toggle]')!.before(help);
  document.body.append(d);d.showModal();
  const get=<T extends HTMLElement>(k:string)=>d.querySelector<T>('[data-'+k+']')!;
  const btn=(k:string)=>get<HTMLButtonElement>(k);
- if(practice){d.querySelector('#station-title')!.textContent=practice.mode==='wiring'?'Lv.13 · DHT11 가상 배선':'Lv.15 · DHT11 실물 측정';get('hardware').hidden=practice.mode==='wiring';btn('unlock').hidden=true;get('answer').closest('label')!.hidden=true;get('shield').closest('.shield')!.setAttribute('hidden','');get('answer').closest('label')!.previousElementSibling!.setAttribute('hidden','');btn('exit').textContent='실습 기록으로 복귀'}
+ if(practice){d.querySelector('#station-title')!.textContent=practice.mode==='wiring'?'Lv.13 · DHT11 가상 배선':'Lv.15 · DHT11 실물 측정';get('hardware').hidden=practice.mode==='wiring';get('diagnosis').hidden=true;btn('exit').textContent='실습 기록으로 복귀'}
  const run=new MeasurementRun();let measured=false;
  const m=new Observatory(),w:Wires={};let selected='',controller:AbortController|undefined,mock=0,last=0;
  let shared=false,otherWires=0,lastCircuit='';
  const locations:Partial<Record<SensorPin,string>>={};
  const missionPanel=d.querySelector('aside')!;
  function showMission(visible:boolean){
+   d.classList.toggle('checking',visible);
    missionPanel.hidden=!visible;
    get('board').hidden=visible;
    btn('toggle').setAttribute('aria-expanded',String(visible));
@@ -59,9 +60,8 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void,practice
  const controls=(label:string,fn:()=>void)=>{const b=document.createElement('button');b.textContent=label;b.onclick=fn;return b};
  function refresh(){
    const count=Object.keys(w).length;
-   get('next').textContent=!m.wired?(count<3?'지금 할 일 · 선 3개 연결 ('+count+'/3)':'지금 할 일 · 연결 확인·검사에서 배선 검사 버튼을 누르세요.'):
-     practice?.mode==='wiring'?'가상 배선 검사 통과 · 결과 메시지를 확인하고 실습 기록으로 돌아가세요.':
-     m.count>=3?'실제 정상 측정 3회 확인 · 검사 화면에서 결과를 확인하세요.':'배선 검사 통과 · 장비가 준비되면 실물 배선을 확인하고 USB를 연결하세요.';
+   get('next').textContent=!m.wired?(count<3?'선 3개를 연결하세요 · '+count+'/3':'연결 완료 · 배선을 검사하세요'):
+     practice?.mode==='wiring'?'배선 검사 통과':m.count>=3?'정상 측정 3회 완료':'배선 통과 · USB를 연결하세요';
    const safe=get<HTMLInputElement>('safe').checked;
    btn('connect').disabled=!navigator.serial||!window.isSecureContext||!safe||!m.wired||!!controller||!!mock;
    btn('stop').disabled=!controller&&!mock;btn('mock').disabled=!!controller||!!mock||!m.wired;

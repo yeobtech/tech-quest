@@ -6,13 +6,10 @@
 .touch-controls button.held,.touch-controls button:active{background:#bedb8be6;color:#19382e;text-shadow:none;box-shadow:0 0 0 3px #d5ed9d55}
 .touch-controls button:focus-visible,.touch-toggle:focus-visible{outline:3px solid #f4e6a3;outline-offset:2px}
 .touch-controls [data-pad]{position:absolute;left:max(14px,env(safe-area-inset-left));bottom:max(24px,env(safe-area-inset-bottom));width:154px;height:154px;border:1px solid #e4eed45c;border-radius:50%;background:#102b253d;box-shadow:inset 0 0 0 8px #eef8d90a}
-.touch-controls [data-pad] button{width:48px;height:48px;font-size:22px;background:#28463b80}
-.touch-controls [data-key=LEFT]{left:0;top:53px}.touch-controls [data-key=RIGHT]{right:0;top:53px}.touch-controls [data-key=UP]{top:0;left:53px}.touch-controls [data-key=DOWN]{bottom:0;left:53px}
-.touch-controls [data-pad] [data-key=SHIFT]{left:55px;top:55px;width:44px;height:44px;font-size:11px;border-color:#dde9ce40;background:#19382e50}
 .touch-controls [data-actions]{position:absolute;right:max(16px,env(safe-area-inset-right));bottom:max(24px,env(safe-area-inset-bottom));width:166px;height:150px}
 .touch-controls [data-key=Z]{left:0;bottom:0;width:78px;height:78px;font-size:18px;background:#795035a6;border:2px solid #f2d29caa}
 .touch-controls [data-key=SPACE]{right:0;bottom:20px;width:66px;height:66px;font-size:16px;background:#355f6caa;border-color:#c9e9e6aa}
-.touch-controls [data-key=E]{right:24px;top:0;width:64px;height:48px;border-radius:24px;font-size:12px}
+.touch-controls [data-key=E]{right:10px;top:0;width:96px;height:48px;border-radius:24px;font-size:12px}
 .touch-controls [data-menu]{position:absolute;right:64px;top:max(10px,env(safe-area-inset-top));display:flex;gap:6px}
 .touch-controls [data-menu] button{position:static;min-width:44px;min-height:44px;padding:5px 8px;border-radius:12px;font-size:11px}
 .touch-toggle{position:absolute;right:10px;top:max(10px,env(safe-area-inset-top));z-index:13;border-radius:12px;font-size:11px;padding:4px}
@@ -36,3 +33,9 @@ header,.world-heading,.below,footer,main>button{display:none}main{display:block;
 .top-overlay{top:10px;left:max(12px,env(safe-area-inset-left))}.top-overlay span:last-child{display:none}
 #notice{bottom:28px;max-width:32%;font-size:10px}.touch-controls p{bottom:8px;font-size:10px}
 }
+
+.touch-controls [data-pad]{pointer-events:auto;touch-action:none;cursor:grab;-webkit-touch-callout:none}
+.stick-track{position:absolute;left:16px;right:16px;top:75px;height:2px;background:#e4eed45c;pointer-events:none}
+.stick-knob{position:absolute;left:49px;top:49px;width:54px;height:54px;border:2px solid #e0ecc7a8;border-radius:50%;background:#b6cda16e;box-shadow:0 3px 8px #0004,inset 0 2px 5px #fff4;pointer-events:none}
+.touch-controls button:disabled{opacity:.45;cursor:default}
+.touch-controls [data-pad]:focus-visible{outline:3px solid #f4e6a3;outline-offset:2px}

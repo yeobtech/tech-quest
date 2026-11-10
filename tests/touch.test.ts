@@ -12,3 +12,12 @@ test('canceling one finger keeps the other; pause clears held keys and pending a
   t.press(3,'E');t.reset();assert.equal(t.down('Z'),false);assert.equal(t.consume('E'),false);
   t.press(4,'I');t.endFrame();assert.equal(t.consume('I'),false);
 });
+test('horizontal stick dead zone, reversal and release do not affect the attack finger',()=>{
+  const t=new TouchState();t.press(2,'Z');
+  t.moveHorizontal(1,9);assert.equal(t.down('RIGHT'),false);assert.equal(t.down('LEFT'),false);
+  t.moveHorizontal(1,35);assert.equal(t.down('RIGHT'),true);
+  t.moveHorizontal(1,-35);assert.equal(t.down('RIGHT'),false);assert.equal(t.down('LEFT'),true);
+  t.moveHorizontal(1,0);assert.equal(t.down('LEFT'),false);assert.equal(t.down('Z'),true);
+  t.moveHorizontal(1,44);t.release(1);assert.equal(t.down('RIGHT'),false);assert.equal(t.down('Z'),true);
+  t.reset();assert.equal(t.down('Z'),false);
+});
