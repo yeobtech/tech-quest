@@ -25,12 +25,11 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void,practice
  <label>입력 → 처리 → 출력 순서<select data-answer><option value="">선택하세요</option><option>USB로 출력 → 센서 측정 → 보드에서 검사</option><option>${principle}</option></select></label>
  <button data-unlock>방어막 해제</button></section><p data-result role="status"></p></div></aside></div>`;
  const intro=document.createElement('section');intro.className='station-intro';
- intro.innerHTML=`<small>실습을 시작하기 전에</small><h3>온도와 습도를 다시 읽을 수 있게 도와주세요.</h3>
- <p>기술 교관의 관측소 복구 실습입니다. 게임은 잠시 멈췄어요. 먼저 화면 속 DHT11 센서와 보드를 선 3개로 연결합니다.</p>
- <ol><li><b>가상 배선</b> — 이미 놓인 파란 DHT11의 접점을 보드 접점까지 끌어 연결하세요.</li><li><b>배선 검사</b> — 연결한 뒤 ‘연결 확인·검사’에서 잘못된 곳을 확인하세요.</li>${practice?.mode==='wiring'?'':'<li><b>실물 측정</b> — 장비와 펌웨어가 준비되면 USB로 정상 측정 3회를 확인합니다. 장비가 없다면 가상 배선까지만 연습해도 됩니다.</li>'}</ol>
- <p class="station-pin-guide">VCC → 3V3 · GND → GND · DATA → GPIO21</p>
- <p>${practice?'이 실습에서는 펌웨어와 같은 GPIO21로 연결합니다.':'GPIO21은 현재 펌웨어의 DATA 핀입니다. 다른 사용 가능한 GPIO도 펌웨어 설정과 일치시키면 사용할 수 있습니다.'}</p>
- <p>지금은 다른 부품을 추가하지 않아도 됩니다. 그만하려면 오른쪽 위 복귀 버튼을 누르세요.</p><button data-begin>1단계 · 가상 배선 시작</button>`;
+ intro.innerHTML=`<small>${practice?.mode==='measurement'?'실제 센서 측정':'화면 속 배선 연습'}</small><h3>${practice?.mode==='measurement'?'실제 온도와 습도를 읽어 봐요.':'센서와 보드를 연결해 봐요.'}</h3>
+ <p>점선을 따라 선 3개를 연결하고 <b>연결 확인·검사</b>를 누르세요.</p>
+ <p class="station-pin-guide">DATA → 21번 S · VCC → V(3.3V) · GND → G</p>
+ ${practice?.mode==='measurement'?'<p>배선 확인 후 USB를 연결해 온습도를 3번 읽어요.</p>':''}
+ <details><summary>연결할 때 알아둘 점</summary><p>보드의 빨간 V는 3.3V 설정을 사용해요. 실제 전원을 연결하기 전에는 핀 이름과 전압을 확인하세요.</p><p>21번은 현재 센서를 읽는 프로그램의 핀 번호예요. 다른 GPIO를 쓰려면 프로그램의 번호도 바꿔야 해요.</p><p>장비가 없으면 화면 속 배선만 연습할 수 있어요. 나가려면 오른쪽 위 복귀 버튼을 누르세요.</p></details><button data-begin>배선 연습 시작</button>`;
  const workspace=d.querySelector<HTMLElement>('.station-body')!;workspace.hidden=true;
  workspace.before(intro);
  const guide=document.createElement('div');guide.className='station-guide';guide.hidden=true;
@@ -66,7 +65,9 @@ export function openStation(ids:string[],save:()=>boolean,done:()=>void,practice
    btn('connect').disabled=!navigator.serial||!window.isSecureContext||!safe||!m.wired||!!controller||!!mock;
    btn('stop').disabled=!controller&&!mock;btn('mock').disabled=!!controller||!!mock||!m.wired;
    btn('unlock').disabled=completed()||!m.connected||m.count<3||!m.wired;
-   get('shield').textContent=completed()?'방어막 해제 · '+title+(ids.includes(badges.teacher)?' (교사 확인)':''):'방어막 작동 · 실제 정상 측정 '+m.count+' / 3';
+   btn('unlock').textContent=completed()?'해제 완료':!m.wired?'먼저 배선을 검사해 주세요':m.count<3?'실제 측정 '+m.count+'/3 · 수신 대기':'방어막 해제';
+   get('answer').closest('label')!.hidden=completed();
+   get('shield').textContent=completed()?'✓ 관측소 복구 완료 · 칭호: '+title+(ids.includes(badges.teacher)?' (교사 확인)':''):'실제 온습도를 3번 읽으면 방어막을 해제할 수 있어요. ('+m.count+'/3)';
    d.classList.toggle('restored',completed());
  }
  function stop(){

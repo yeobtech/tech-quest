@@ -2,12 +2,12 @@ import type {Progress} from '../systems/ProgressionSystem';
 import {makeBoard} from '../observatory/board';
 import {labAction,labStatus,recordWiring,recordMeasurement,recordFields,findingRoles,jumperTasks,exportPractical2,type MissionLevel,type Finding,type LabNotes} from '../education/practical2';
 import './learning.css';
-const titles:Record<MissionLevel,string>={11:'ESP32-S3 구조 탐험',12:'점퍼선과 회로 기초',13:'DHT11 가상 배선',14:'실물 장치 연결',15:'DHT11 온습도 측정'};
-export function openPractical2(p:Progress,save:(p:Progress)=>boolean){
+import {practicalTitles as titles} from '../education/questMenu';
+export function openPractical2(p:Progress,save:(p:Progress)=>boolean,questLevel?:MissionLevel,done=()=>{}){
  const d=document.createElement('dialog');d.className='workshop learning';d.setAttribute('aria-label','스테이지 2 실제 수행');
- d.innerHTML='<h2>스테이지 2 · 실제 수행</h2><p>지식 시험·게임 EXP와 별도입니다. 가상 활동은 실물 인증이 아닙니다. 교사 인증 서버가 없어 공식 최종 완료를 표시하지 않습니다.</p><nav></nav><section data-activity></section><section data-notes></section><p role="status" aria-live="polite"></p><button data-export>전체 결과 파일 내보내기</button> <button data-close>교관으로 돌아가기</button>';
+ d.innerHTML='<h2>보드 실습 퀘스트</h2><p>실습한 뒤 기록을 남겨 주세요. 선생님 확인은 따로 받아요.</p><nav></nav><section data-activity></section><details><summary>실습 기록 쓰기</summary><section data-notes></section></details><p role="status" aria-live="polite"></p><button data-export>기록 파일 내려받기</button> <button data-close>퀘스트 목록으로</button>';
  const area=d.querySelector<HTMLElement>('[data-activity]')!,notes=d.querySelector<HTMLElement>('[data-notes]')!,status=d.querySelector<HTMLElement>('[role=status]')!;
- let level:MissionLevel=11,summary:HTMLElement|undefined;
+ let level:MissionLevel=questLevel??11,summary:HTMLElement|undefined;
  const updateSummary=()=>{if(summary)summary.textContent=`Lv.${level} · ${titles[level]} — ${labStatus(p,level)}`};
  const button=(parent:Element,text:string,fn:()=>void)=>{const b=document.createElement('button');b.textContent=text;b.onclick=fn;parent.append(b);return b};
  const text=(parent:Element,value:string)=>{const e=document.createElement('p');e.textContent=value;parent.append(e);return e};
@@ -16,10 +16,9 @@ export function openPractical2(p:Progress,save:(p:Progress)=>boolean){
  function saveDraft(){const r=labAction(p,level,{kind:'notes',notes:draft(),submit:false},save);status.textContent=r==='saved'?'초안 저장 완료':'저장 실패 · 입력은 화면에 남아 있습니다.';if(r==='saved')updateSummary();return r==='saved'}
  function render(){
   area.replaceChildren();notes.replaceChildren();const r=p.practical2[level];summary=text(area,'');updateSummary();
-  text(area,'A. 지식 평가: '+(r.knowledgePassedAt?'승급 시험 통과 기록 · '+new Date(r.knowledgePassedAt).toLocaleString('ko-KR'):'별도 통과 기록 없음 (이전 저장에서는 소급 추정하지 않음)')+' / B. 실제 수행: 아래 실습·제출 기록으로 별도 관리');
-  button(area,'미션 시작 / 이어서 하기',()=>{status.textContent=labAction(p,level,{kind:'start'},save)==='saved'?'진행 중으로 저장했습니다.':'저장 실패';updateSummary();});
+  d.querySelector('h2')!.textContent=`Lv.${level} · ${titles[level]}`;
   if(level===11){
-   text(area,'기존 KS5034 3D 모델에서 USB PROG·USB OTG·GPIO·3V3·GND를 직접 선택하고 역할을 자신의 말로 기록하세요. 모델의 부품 높이는 교육용 근사치이며 실물 위치는 보드 표기를 확인하세요.');
+   text(area,'보드에서 USB PROG, USB OTG, GPIO, 3V3, GND를 찾아 눌러 보세요. 각 단자가 하는 일을 적으면 돼요.');
    text(area,'확인한 단자: '+Object.keys(r.findings).join(', '));
    button(area,'3D 보드 탐험 열기',()=>{
     if(!saveDraft())return;
@@ -37,21 +36,21 @@ export function openPractical2(p:Progress,save:(p:Progress)=>boolean){
    for(const q of jumperTasks){const f=document.createElement('fieldset');text(f,q.prompt);const feedback=text(f,r.jumpers.includes(q.id)?'✓ 확인됨':'');for(const answer of q.choices)button(f,answer,()=>{const result=labAction(p,12,{kind:'jumper',id:q.id,answer},save);feedback.textContent=result==='saved'?'✓ 정답 · '+q.hint:result==='wrong'?'다시 시도하세요. '+q.hint:'저장 실패';if(result==='saved'){f.querySelectorAll('button').forEach(b=>b.disabled=true);updateSummary()}}).disabled=r.jumpers.includes(q.id);area.append(f)}
   }
   if(level===13){
-   text(area,'DHT11 3핀·3.3V 모듈: VCC → 3V3 / DATA → GPIO21 / GND → GND. 가상 배선은 실제 통전 안전성을 대신하지 않습니다.');
+   text(area,'센서와 보드를 선 3개로 연결해요. 점선을 따라 연결하고 검사 버튼을 누르세요.');
    if(r.wiring)text(area,'마지막 정상 배선 기록: VCC → 3V3, DATA → GPIO21, GND → GND. 다시 입장하면 빈 회로에서 재연습합니다.');
-   button(area,'Three.js DHT11 가상 배선 열기',async()=>{
+   button(area,'배선 연습 시작',async()=>{
     if(!saveDraft())return;try{const {openStation}=await import('../observatory/station');if(d.open)openStation([],()=>false,()=>render(),{mode:'wiring',onWiring:(w,profile,other)=>recordWiring(p,w,profile,other,save)})}catch{status.textContent='배선 실습을 열지 못했습니다. 다시 시도하세요.'}
    });
   }
   if(level===14){
-   text(area,'① 데이터 지원 USB-C 케이블로 KS5034 USB PROG에 연결합니다. Windows 장치 관리자 → 포트(COM 및 LPT)에서 장치 이름과 현재 COM 번호를 기록하세요. COM23은 이전 확인값이며 컴퓨터·연결 상황에 따라 달라질 수 있습니다.');
-   text(area,'② 기존 소스와 PlatformIO 설정을 별도 복사하고 복원 가능한 프로그램이 있는지 교사와 확인하세요. 업로드는 보드의 현재 펌웨어를 교체합니다. 기존 실행 프로그램 보존이 필요하면 별도 실습 보드를 쓰세요. 이 게임은 업로드를 실행하지 않습니다.');
-   text(area,'③ 별도 예제 firmware/observatory_dht11을 사용합니다. DATA_PIN=21, DHT11 3핀·3.3V, VCC→3V3, GND→GND를 전원 분리 상태에서 확인하세요. 폴더에서 pio run으로 먼저 빌드하고, 교사 확인 후 pio run -t upload --upload-port COM번호로 업로드합니다. 기존 프로젝트 설정을 덮어쓰지 마세요.');
-   text(area,'④ 115200 baud 시리얼 모니터에서 DATA=GPIO21 부팅 로그, 2초 간격 JSON, valid:true/false를 확인합니다. 업로드 성공과 측정 성공은 별개입니다. 브라우저 연결 전 모니터를 닫으세요.');
-   text(area,'장치 이름·COM 번호·업로드 성공/실패 로그 요약·증거 파일 이름과 오류 해결 과정을 아래에 기록하고 결과 파일을 교사에게 제출하세요. 자기 기록만으로 실물 검증 완료가 되지 않습니다. 비밀번호와 개인정보는 넣지 마세요.');
+   text(area,'① 데이터 전송이 되는 USB 케이블로 보드의 USB PROG와 컴퓨터를 연결해요. 장치 관리자에서 COM 번호를 찾으세요.');
+   text(area,'② 선생님과 기존 프로그램을 백업해요. 새 프로그램을 넣으면 보드의 기존 프로그램이 바뀌어요.');
+   text(area,'③ 전원을 뺀 상태에서 센서의 DATA→GPIO21, VCC→3V3, GND→GND를 확인해요. 선생님과 함께 측정 프로그램을 넣으세요.');
+   text(area,'④ 온도와 습도가 나오는지 확인하고, 브라우저 연결 전에 시리얼 모니터를 닫으세요. 결과는 아래 실습 기록에 적어요.');
+   const help=document.createElement('details');help.innerHTML='<summary>선생님과 함께 보는 프로그램 설정</summary><p>별도 예제: firmware/observatory_dht11 · DATA_PIN=21 · DHT11 3핀 3.3V.</p><p>예제 폴더에서 pio run으로 확인한 뒤, 교사 확인 후 pio run -t upload --upload-port COM번호로 올립니다. COM 번호는 컴퓨터마다 달라요. 기존 프로젝트 설정은 덮어쓰지 마세요.</p><p>시리얼 모니터 속도: 115200 baud. DATA=GPIO21, 2초 간격 JSON, valid:true/false를 확인하세요. 업로드 성공과 센서 측정 성공은 서로 달라요.</p>';area.append(help);
   }
   if(level===15){
-   text(area,'확인된 DHT11 3핀·3.3V 모듈과 GPIO21 펌웨어를 사용합니다. 가상 배선 검사 후 미션 검사 화면에서 안전 확인 → 실제 USB 장치 연결을 직접 누르세요. 2초 간격 정상 데이터 3회를 확인하며 Mock은 제외됩니다. 실패하면 전원을 분리하고 배선·코드·포트를 점검해 다시 시도하세요. EXP 패널티는 없습니다.');
+   text(area,'배선을 검사한 뒤 실제 USB 연결을 눌러요. 온도와 습도를 2초 간격으로 3번 읽으면 돼요. 모의 데이터는 횟수에 들어가지 않아요.');
    if(r.measurement)for(const v of r.measurement.samples)text(area,`저장된 USB 측정 기록 · ${new Date(v.at).toLocaleString('ko-KR')} · ${v.temperature} °C / ${v.humidity} %`);
    button(area,'관측소 · 실제 온습도 수신',async()=>{
     if(!saveDraft())return;try{const {openStation}=await import('../observatory/station');if(d.open)openStation([],()=>false,()=>render(),{mode:'measurement',onWiring:(w,profile,other)=>recordWiring(p,w,profile,other,save),onMeasurement:run=>recordMeasurement(p,run,save)})}catch{status.textContent='관측소를 열지 못했습니다. 다시 시도하세요.'}
@@ -62,7 +61,8 @@ export function openPractical2(p:Progress,save:(p:Progress)=>boolean){
   button(notes,'초안 저장',saveDraft);
   button(notes,'결과 제출 / 재제출 · 교사 확인 대기',()=>{const result=labAction(p,level,{kind:'notes',notes:draft(),submit:true},save);status.textContent=result==='saved'?'이 기기에 제출본 저장 · 교사에게 자동 전송되지 않았습니다. 결과 파일을 지정 장소에 제출하세요.':result==='incomplete'?'여섯 항목을 각각 2자 이상 작성하세요.':'저장 실패';if(result==='saved')updateSummary();});
  }
- for(const l of [11,12,13,14,15] as MissionLevel[])button(d.querySelector('nav')!,`Lv.${l} ${titles[l]}`,()=>{if(saveDraft()){level=l;render()}});
+ d.querySelector('nav')!.hidden=questLevel!==undefined;
+ if(questLevel===undefined)for(const l of [11,12,13,14,15] as MissionLevel[])button(d.querySelector('nav')!,`Lv.${l} ${titles[l]}`,()=>{if(saveDraft()){level=l;render()}});
  d.querySelector<HTMLButtonElement>('[data-export]')!.onclick=()=>{if(!saveDraft())return;const url=URL.createObjectURL(new Blob([JSON.stringify(exportPractical2(p),null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='TECH_QUEST-stage2-practical.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status.textContent='로컬 기록 내보내기 완료 · 공식 인증서가 아닙니다.'};
- d.querySelector<HTMLButtonElement>('[data-close]')!.onclick=()=>{if(saveDraft())d.close()};d.oncancel=e=>{e.preventDefault();if(saveDraft())d.close()};d.onclose=()=>d.remove();document.body.append(d);render();d.showModal();
+ d.querySelector<HTMLButtonElement>('[data-close]')!.onclick=()=>{if(saveDraft())d.close()};d.oncancel=e=>{e.preventDefault();if(saveDraft())d.close()};d.onclose=()=>{d.remove();done()};document.body.append(d);render();d.showModal();
 }
